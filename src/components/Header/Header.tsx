@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
@@ -8,7 +9,9 @@ interface HeaderProps {
 
 function Header({ onSearch }: HeaderProps) {
   const { cartQuantity } = useCart();
+  const { isAuthenticated, user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
 
   function handleSearch() {
     onSearch?.(searchQuery);
@@ -66,6 +69,24 @@ function Header({ onSearch }: HeaderProps) {
       )}
 
       <div className="w-[180px] shrink-0 flex justify-end">
+        {isAuthenticated ? (
+          <button
+            onClick={() => { logout(); navigate('/'); }}
+            className="inline-block p-[6px] rounded-sm cursor-pointer text-white border border-transparent hover:border-white text-left"
+          >
+            <span className="block text-[13px]">Hello, {user?.email.split('@')[0]}</span>
+            <span className="block text-[15px] font-bold">Sign Out</span>
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            className="inline-block p-[6px] rounded-sm cursor-pointer text-white border border-transparent hover:border-white"
+          >
+            <span className="block text-[13px]">Hello, sign in</span>
+            <span className="block text-[15px] font-bold">Account</span>
+          </Link>
+        )}
+
         <Link
           to="/orders"
           className="inline-block p-[6px] rounded-sm cursor-pointer text-white border border-transparent hover:border-white"

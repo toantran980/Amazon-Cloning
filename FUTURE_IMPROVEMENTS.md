@@ -50,6 +50,37 @@ Use this quick decision rule:
 - Persist users, carts, and orders in a database
 - Add schema validation on every API route
 
+#### Recommended API Approach
+
+| Option | Best For | Notes |
+|--------|----------|-------|
+| **Next.js API Routes** | Full-stack in one repo | Easiest if migrating to Next.js; built-in TypeScript, file-based routing |
+| **Express + Node.js** | Custom REST API | Full control; pair with PostgreSQL (via Prisma) or MongoDB |
+| **Hono** | Lightweight REST API | Modern, edge-ready, great TypeScript DX; ideal for Cloudflare Workers or Bun |
+| **Supabase** | Quickest backend setup | Postgres + auto-generated REST & realtime APIs + auth built in |
+| **Firebase** | NoSQL / realtime | Fast to set up; good for small-scale apps; less SQL control |
+
+**Recommendation:** Start with **Supabase** — free tier, built-in auth, auto-generated REST API, and easy to migrate to a custom backend later.
+
+#### What to Replace
+
+| Current (localStorage) | Replace With |
+|------------------------|--------------|
+| `src/data/orders.ts` — `loadOrders` / `addOrder` | `GET /api/orders`, `POST /api/orders` |
+| `src/context/CartContext.tsx` — cart state | `GET /api/cart`, `PATCH /api/cart` |
+| `src/data/products.ts` — static product data | `GET /api/products` (database-driven) |
+
+#### Suggested Service Layer Structure
+
+```
+src/
+└── services/
+    ├── api.ts           # Base fetch wrapper (auth headers, error handling)
+    ├── cartService.ts   # getCart, addToCart, updateQuantity, clearCart
+    ├── orderService.ts  # getOrders, placeOrder
+    └── productService.ts # getProducts, searchProducts
+```
+
 ### Phase 3: Transaction Safety (3-7 days)
 - Integrate Stripe checkout or payment intents
 - Verify payment on server before creating orders

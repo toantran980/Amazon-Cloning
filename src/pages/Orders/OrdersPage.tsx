@@ -1,15 +1,62 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import Header from '../../components/Header/Header';
 import { loadOrders } from '../../data/orders';
 import { getProduct } from '../../data/products';
 import { useCartDispatch } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
+import { orderService } from '../../services/orderService';
 import { formatCurrency } from '../../utils/money';
+import type { Order as ApiOrder } from '../../../shared/types';
+import type { Order as LocalOrder } from '../../types';
+
+type DisplayOrder = {
+  id: string;
+  orderDate: number;
+  totalCents: number;
+  products: { productId: string; quantity: number; estimatedDeliveryDate: string }[];
+};
+
+function toDisplayOrder(o: ApiOrder): DisplayOrder {
+  const totalCents = o.items.reduce((s, i) => s + i.priceCents * i.quantity, 0);
+  return {
+    id: o.id,
+    orderDate: o.orderDate,
+    totalCents,
+    products: o.items.map((i) => ({
+      productId: i.productId,
+      quantity: i.quantity,
+      estimatedDeliveryDate: i.estimatedDelivery,
+    })),
+  };
+}
+
+function localToDisplay(o: LocalOrder): DisplayOrder {
+  return {
+    id: o.id,
+    orderDate: o.orderDate,
+    totalCents: o.totalCents,
+    products: o.products.map((p) => ({
+      productId: p.productId,
+      quantity: p.quantity,
+      estimatedDeliveryDate: p.estimatedDeliveryDate,
+    })),
+  };
+}
 
 export default function OrdersPage() {
-  const orders = useMemo(() => loadOrders(), []);
+  const { isAuthenticated } = useAuth();
+  const [orders, setOrders] = useState<DisplayOrder[]>([]);
   const dispatch = useCartDispatch();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      orderService.getOrders().then((data) => setOrders(data.map(toDisplayOrder)));
+    } else {
+      setOrders(loadOrders().map(localToDisplay));
+    }
+  }, [isAuthenticated]);
 
   const handleBuyAgain = useCallback(
     (productId: string) => {

@@ -1,13 +1,17 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCartDispatch, useCartState } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { addOrder } from '../../data/orders';
+import { orderService } from '../../services/orderService';
 import { formatCurrency } from '../../utils/money';
 import { buildOrderFromCart, calculateCartTotals } from '../../utils/order';
+import { getDeliveryOption, calculateDeliveryDate } from '../../data/deliveryOptions';
 
 export default function PaymentSummary() {
   const { cart } = useCartState();
   const dispatch = useCartDispatch();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const { productsCents, shippingCents, taxCents, totalCents, itemsCount } = useMemo(
@@ -15,10 +19,23 @@ export default function PaymentSummary() {
     [cart]
   );
 
-  function handlePlaceOrder() {
-    const order = buildOrderFromCart(cart, totalCents);
-
-    addOrder(order);
+  async function handlePlaceOrder() {
+    if (isAuthenticated) {
+      const items = cart.map((item) => {
+        const option = getDeliveryOption(item.deliveryOptionId);
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          priceCents: totalCents,
+          deliveryOptionId: item.deliveryOptionId,
+          estimatedDelivery: calculateDeliveryDate(option),
+        };
+      });
+      await orderService.placeOrder({ items });
+    } else {
+      const order = buildOrderFromCart(cart, totalCents);
+      addOrder(order);
+    }
     dispatch({ type: 'CLEAR_CART' });
     navigate('/orders');
   }
