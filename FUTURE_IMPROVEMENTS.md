@@ -2,17 +2,18 @@
 
 ## Current Reality
 This project is in a strong demo/staging state:
-- Build passes
-- Core flows work
+- Build passes and frontend is clean (Tailwind CSS v4)
+- Core shopping flows work end-to-end
+- Real Express + PostgreSQL + Prisma backend scaffolded
+- JWT authentication with register/login/logout
+- API-backed cart and orders when logged in; localStorage fallback for guests
 - Basic test coverage exists
-- Performance and architecture were improved
 
 It is not yet a full production app for real customer transactions.
 
 ## Should You Push to Production?
 Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet.
 
-Use this quick decision rule:
 - Push now if your goal is showcase, portfolio, or learning.
 - Wait if your goal is real users, payments, or long-term support.
 
@@ -24,81 +25,79 @@ Use this quick decision rule:
 - [x] Basic tests pass
 - [x] Error boundary exists
 - [x] Accessible labels added to key controls
+- [x] Tailwind CSS v4 styling
+- [x] Backend scaffolded with auth, cart, orders, products routes
 
 ### Required for Real Production (not done yet)
-- [ ] Backend API for cart/orders (replace localStorage persistence)
-- [ ] Authentication and user-scoped data
 - [ ] Payment provider integration (Stripe/PayPal) with server-side verification
-- [ ] Server-side input validation and rate limiting
+- [ ] Rate limiting and brute-force protection on auth routes
+- [ ] Refresh token rotation (current JWT is 7-day, no revocation)
 - [ ] Monitoring/observability (Sentry + logs + uptime)
 - [ ] CI/CD pipeline with quality gates (lint/test/build)
 - [ ] E2E tests for shopping, checkout, order tracking
 - [ ] Security headers and CSP
 - [ ] Data backup/retention strategy
+- [ ] CartContext sync with API on login (currently separate)
 
 ## Recommended Roadmap
 
-### Phase 1: Deploy as Portfolio Demo (1-2 days)
+### Phase 1: Deploy as Portfolio Demo ✅ Ready
 - Deploy frontend to Vercel/Netlify
-- Add environment variable scaffolding
-- Add clear README section: "Demo only, no real checkout"
-- Add simple analytics (optional)
+- Deploy backend to Railway/Render (free tier supports PostgreSQL)
+- Set environment variables on hosting provider
 
-### Phase 2: Real Backend Foundation (3-7 days)
-- Create API service layer and replace direct localStorage business logic
-- Add auth (Clerk/Auth0/Firebase/Auth.js)
-- Persist users, carts, and orders in a database
-- Add schema validation on every API route
+### Phase 2: Real Backend Foundation ✅ Done
+- ~~Create API service layer and replace direct localStorage business logic~~
+- ~~Add JWT auth (register/login/logout)~~
+- ~~Persist users, carts, and orders in PostgreSQL via Prisma~~
+- ~~Add schema validation (Zod) on every API route~~
+- ~~Frontend service layer (authService, cartService, orderService, productService)~~
+- ~~AuthContext + Login/Register page~~
+- ~~Vite `/api` proxy for local development~~
 
-#### Recommended API Approach
+#### What Was Built
 
-| Option | Best For | Notes |
-|--------|----------|-------|
-| **Next.js API Routes** | Full-stack in one repo | Easiest if migrating to Next.js; built-in TypeScript, file-based routing |
-| **Express + Node.js** | Custom REST API | Full control; pair with PostgreSQL (via Prisma) or MongoDB |
-| **Hono** | Lightweight REST API | Modern, edge-ready, great TypeScript DX; ideal for Cloudflare Workers or Bun |
-| **Supabase** | Quickest backend setup | Postgres + auto-generated REST & realtime APIs + auth built in |
-| **Firebase** | NoSQL / realtime | Fast to set up; good for small-scale apps; less SQL control |
-
-**Recommendation:** Start with **Supabase** — free tier, built-in auth, auto-generated REST API, and easy to migrate to a custom backend later.
-
-#### What to Replace
-
-| Current (localStorage) | Replace With |
-|------------------------|--------------|
+| Was (localStorage) | Now (API) |
+|--------------------|-----------|
 | `src/data/orders.ts` — `loadOrders` / `addOrder` | `GET /api/orders`, `POST /api/orders` |
 | `src/context/CartContext.tsx` — cart state | `GET /api/cart`, `PATCH /api/cart` |
-| `src/data/products.ts` — static product data | `GET /api/products` (database-driven) |
+| `src/data/products.ts` — static product data | `GET /api/products` (DB-seeded) |
+| No auth | `POST /api/auth/register`, `POST /api/auth/login` (JWT) |
 
-#### Suggested Service Layer Structure
+#### Service Layer Built
 
 ```
-src/
-└── services/
-    ├── api.ts           # Base fetch wrapper (auth headers, error handling)
-    ├── cartService.ts   # getCart, addToCart, updateQuantity, clearCart
-    ├── orderService.ts  # getOrders, placeOrder
-    └── productService.ts # getProducts, searchProducts
+src/services/
+├── api.ts            # Base fetch wrapper (auth headers, 401 handling)
+├── authService.ts    # login, register, logout
+├── cartService.ts    # getCart, addToCart, updateItem, removeItem, clearCart
+├── orderService.ts   # getOrders, placeOrder
+└── productService.ts # getProducts
 ```
 
 ### Phase 3: Transaction Safety (3-7 days)
 - Integrate Stripe checkout or payment intents
 - Verify payment on server before creating orders
 - Add idempotency for order creation
-- Add order status lifecycle and audit logs
+- Add order status lifecycle (preparing → shipped → delivered)
+- Sync cart from API on login (merge local guest cart with server cart)
+- Implement JWT refresh tokens with rotation and revocation
 
 ### Phase 4: Reliability and Scale (2-5 days)
 - Add Sentry error tracking
-- Add structured logging
-- Add caching and pagination for large order lists
-- Add E2E tests and branch protection checks
+- Add structured logging (Winston or Pino)
+- Add rate limiting (express-rate-limit) on auth routes
+- Add caching and pagination for product and order lists
+- Add E2E tests (Playwright) for home, checkout, and orders
+- Add GitHub Actions CI: lint → test → build on every PR
 
 ## Quick Wins You Can Do Next
 1. Add GitHub Actions for lint/test/build on every PR.
 2. Add Playwright smoke tests for home, checkout, and orders.
-3. Create a backend adapter layer so moving from localStorage to API is easy.
-4. Add a feature flag for mock mode vs API mode.
+3. Merge guest cart into user cart on login.
+4. Add a "Demo mode" banner so visitors know no real payments are processed.
 
 ## Final Advice
 If your goal is to learn and ship, deploy now as a demo.
 If your goal is business-grade reliability, finish the "Required for Real Production" checklist first.
+
