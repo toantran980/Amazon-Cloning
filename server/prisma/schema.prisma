@@ -8,16 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String      @id @default(cuid())
-  email        String      @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   passwordHash String
-  createdAt    DateTime    @default(now())
+  createdAt    DateTime   @default(now())
   cart         CartItem[]
   orders       Order[]
 }
 
 model Product {
-  id            String      @id
+  id            String   @id
   image         String
   name          String
   ratingStars   Float
@@ -29,32 +29,32 @@ model Product {
 }
 
 model CartItem {
-  id               String  @id @default(cuid())
+  id               String @id @default(cuid())
   userId           String
   productId        String
   quantity         Int
   deliveryOptionId String
-  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
 }
 
 model Order {
-  id         String        @id
+  id         String      @id
   userId     String
   orderDate  BigInt
   totalCents Int
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   products   OrderItem[]
 }
 
 model OrderItem {
-  id                    String  @id @default(cuid())
+  id                    String @id @default(cuid())
   orderId               String
   productId             String
   quantity              Int
   deliveryOptionId      String
   estimatedDeliveryDate String
-  status                String  @default("preparing")
-  order                 Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status                String @default("preparing")
+  order                 Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }

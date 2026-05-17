@@ -74,23 +74,41 @@ npx prisma generate
 # 3. Run migrations (requires DATABASE_URL in server/.env)
 npx prisma migrate dev --name init
 
-# 4. Seed products
+# 4. (Optional) Verify DB connection from server folder
+npx prisma db pull
+
+# 5. Seed products
 npx prisma db seed
 
-# 5. Start the API server
+# 6. Start the API server
 npm run dev        # http://localhost:3001
 ```
+
+Important: run Prisma commands from `server/` only. Running `npx prisma ...` from the repo root can prompt to install a different Prisma version.
 
 ## Environment Variables
 
 Create `server/.env` based on `server/.env.example`:
 
 ```env
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/amazon_clone"
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/amazon_clone?schema=public"
 JWT_SECRET="replace-with-a-long-random-secret"
 PORT=3001
 CLIENT_ORIGIN="http://localhost:5173"
 ```
+
+If your DB password contains special URL characters (`@`, `&`, `#`, `/`, `%`), URL-encode the password portion in `DATABASE_URL`.
+
+## Backend Smoke Test
+
+After starting the server, these checks should pass:
+
+- `GET /api/products` returns `200`
+- `POST /api/auth/register` returns `201` with a JWT
+- `POST /api/auth/login` returns `200` with a JWT
+- `GET /api/cart` without token returns `401`
+- `GET /api/cart` with bearer token returns `200`
+- Repeating `POST /api/orders` with the same `Idempotency-Key` returns the same order instead of creating a duplicate
 
 ## API Routes
 
@@ -105,7 +123,9 @@ CLIENT_ORIGIN="http://localhost:5173"
 | DELETE | `/api/cart/:productId` | ✅ | Remove item |
 | DELETE | `/api/cart` | ✅ | Clear cart |
 | GET | `/api/orders` | ✅ | Get order history |
-| POST | `/api/orders` | ✅ | Place order (clears cart) |
+| POST | `/api/orders` | ✅ | Place order, clears cart, supports `Idempotency-Key` |
+
+`POST /api/orders` calculates order totals from database product prices instead of trusting client-sent pricing.
 
 ## Scripts
 

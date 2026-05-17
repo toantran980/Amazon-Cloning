@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
-import prisma from '../prismaClient.js';
+import prisma from '../prismaClient';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.post('/register', async (req, res: Response) => {
     return;
   }
   const hashed = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({ data: { email, password: hashed } });
+  const user = await prisma.user.create({ data: { email, passwordHash: hashed } });
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
   res.status(201).json({ token, user: { id: user.id, email: user.email } });
 });
@@ -37,7 +37,7 @@ router.post('/login', async (req, res: Response) => {
   }
   const { email, password } = parsed.data;
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
