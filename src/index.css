@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --amazon-header-bg: #131921;
+  --amazon-link: #017cb6;
+  --amazon-link-hover: #c45000;
+  --amazon-yellow: #ffd814;
+  --amazon-yellow-border: #fcd200;
+  --amazon-success: #067d62;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Roboto, Arial;
+  color: #212121;
+  margin: 0;
+}
+
+p { margin: 0; }
+button { cursor: pointer; }
+select { cursor: pointer; }
+input, select, button { font-family: Roboto, Arial; }
+
+a { text-decoration: none; }
+
+select {
+  color: #212121;
+  background-color: #f0f0f0;
+  border: 1px solid #d5d9d9;
+  border-radius: 8px;
+  padding: 3px 5px;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(213, 217, 217, 0.5);
+}
