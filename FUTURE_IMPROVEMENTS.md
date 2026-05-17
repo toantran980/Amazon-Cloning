@@ -47,6 +47,14 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 - Set environment variables on hosting provider
 
 ### Phase 2: Real Backend Foundation ✅ Done
+
+> ⚠️ **Before running the backend:** Copy `server/.env.example` to `server/.env` and fill in your PostgreSQL connection string:
+> ```env
+> DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/amazon_clone"
+> JWT_SECRET="replace-with-a-long-random-secret"
+> ```
+> You need a running PostgreSQL instance locally or a hosted one (e.g. [Railway](https://railway.app), [Supabase](https://supabase.com), [Neon](https://neon.tech)).
+
 - ~~Create API service layer and replace direct localStorage business logic~~
 - ~~Add JWT auth (register/login/logout)~~
 - ~~Persist users, carts, and orders in PostgreSQL via Prisma~~
