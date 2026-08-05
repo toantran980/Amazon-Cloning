@@ -4,9 +4,12 @@ import React, {
   useReducer,
   useEffect,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
 import type { CartItem } from '../types';
+import { useAuth } from './AuthContext';
+import { cartService } from '../services/cartService';
 import {
   calculateCartQuantity,
   cartReducer,
@@ -30,12 +33,66 @@ interface CartContextValue extends CartStateValue {
 const CartStateContext = createContext<CartStateValue | null>(null);
 const CartDispatchContext = createContext<React.Dispatch<CartAction> | null>(null);
 
+// Tracks the token we already synced the guest cart for, so we don't re-push
+// the same guest items on every page load.
+let syncedToken: string | null = null;
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, dispatch] = useReducer(cartReducer, undefined, loadCart);
+  const { token } = useAuth();
+  const guestCartRef = useRef<CartItem[]>(cart);
 
+  // Keep a ref of the current guest cart so the sync effect below can access
+  // the latest items without re-running on every cart change.
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
+    guestCartRef.current = cart;
   }, [cart]);
+
+  // Persist local cart to localStorage for guests (no token).
+  useEffect(() => {
+    if (!token) {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    }
+  }, [cart, token]);
+
+  // Merge the guest cart into the server cart once when a token appears.
+  useEffect(() => {
+    if (!token) {
+      syncedToken = null;
+      return;
+    }
+
+    // Already synced for this token on a previous render/mount.
+    if (syncedToken === token) return;
+
+    syncedToken = token;
+    let cancelled = false;
+
+    async function mergeCart() {
+      try {
+        // Push the local (guest) cart to the server so nothing is lost.
+        const mergedRows = await cartService.mergeCart(guestCartRef.current);
+
+        // Clear the guest cart from localStorage now that it lives on the server.
+        localStorage.removeItem('cart');
+
+        if (cancelled) return;
+        const merged: CartItem[] = mergedRows.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          deliveryOptionId: item.deliveryOptionId,
+        }));
+        dispatch({ type: 'REPLACE_CART', cart: merged });
+      } catch {
+        // Ignore sync errors; fall back to local cart.
+      }
+    }
+
+    mergeCart();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const cartQuantity = calculateCartQuantity(cart);
   const stateValue = useMemo(() => ({ cart, cartQuantity }), [cart, cartQuantity]);

@@ -4,6 +4,7 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import RouteLoader from './components/RouteLoader/RouteLoader';
+import DemoModeBanner from './components/DemoModeBanner/DemoModeBanner';
 
 const AmazonPage = lazy(() => import('./pages/Amazon/AmazonPage'));
 const CheckoutPage = lazy(() => import('./pages/Checkout/CheckoutPage'));
@@ -16,6 +17,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <CartProvider>
+          <DemoModeBanner />
           <BrowserRouter>
             <Suspense fallback={<RouteLoader />}>
               <Routes>

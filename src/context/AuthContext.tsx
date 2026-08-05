@@ -18,18 +18,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
   useEffect(() => {
-    // Sync stored user data on mount
+    // Sync stored user data on mount.
     const stored = localStorage.getItem('authUser');
     if (stored && token) {
       try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
     }
-  }, []);
-
-  useEffect(() => {
-    const handleLogout = () => logout();
-    window.addEventListener('auth:logout', handleLogout);
-    return () => window.removeEventListener('auth:logout', handleLogout);
-  }, []);
+  }, [token]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await authService.login(email, password);
@@ -53,6 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
   }, []);
+
+  // Listen for session expiry (401 responses dispatch an 'auth:logout' event).
+  useEffect(() => {
+    window.addEventListener('auth:logout', logout);
+    return () => window.removeEventListener('auth:logout', logout);
+  }, [logout]);
 
   const value = useMemo(
     () => ({ user, token, isAuthenticated: !!token, login, register, logout }),

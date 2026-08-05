@@ -3,15 +3,34 @@ import { createHash, randomUUID } from 'crypto';
 import { z } from 'zod';
 import prisma from '../prismaClient';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { computeStatus } from '../orderStatus';
 
 const router = Router();
 router.use(requireAuth);
 
+const MAX_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 10;
+
 router.get('/', async (req: AuthRequest, res: Response) => {
-  const orders = await prisma.order.findMany({
-    where: { userId: req.userId! },
-    orderBy: { orderDate: 'desc' },
-  });
+  const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
+  const pageSize = Math.min(
+    MAX_PAGE_SIZE,
+    Math.max(
+      1,
+      Number.parseInt(String(req.query.pageSize ?? String(DEFAULT_PAGE_SIZE)), 10) || DEFAULT_PAGE_SIZE
+    )
+  );
+
+  const where = { userId: req.userId! };
+  const [total, orders] = await Promise.all([
+    prisma.order.count({ where }),
+    prisma.order.findMany({
+      where,
+      orderBy: { orderDate: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
 
   const orderIds = orders.map((order) => order.id);
   const orderItems = orderIds.length
@@ -42,7 +61,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         priceCents: product?.priceCents ?? 0,
         deliveryOptionId: item.deliveryOptionId,
         estimatedDelivery: item.estimatedDeliveryDate,
-        status: item.status,
+        status: computeStatus(order.orderDate, item.status),
         product,
       };
     });
@@ -56,7 +75,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     };
   });
 
-  res.json(response);
+  res.json({ orders: response, page, pageSize, total });
 });
 
 const OrderItemSchema = z.object({
@@ -121,7 +140,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
           priceCents: productById.get(item.productId)?.priceCents ?? 0,
           deliveryOptionId: item.deliveryOptionId,
           estimatedDelivery: item.estimatedDeliveryDate,
-          status: item.status,
+          status: computeStatus(existing.orderDate, item.status),
           product: productById.get(item.productId),
         })),
       });
@@ -183,7 +202,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       priceCents: productById.get(item.productId)?.priceCents ?? 0,
       deliveryOptionId: item.deliveryOptionId,
       estimatedDelivery: item.estimatedDeliveryDate,
-      status: item.status,
+      status: computeStatus(order.orderDate, item.status),
       product: productById.get(item.productId),
     })),
   });

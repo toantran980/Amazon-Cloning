@@ -13,4 +13,7 @@ export const cartService = {
   removeItem: (productId: string) => api.delete<void>(`/cart/${productId}`),
 
   clearCart: () => api.delete<void>('/cart'),
+
+  mergeCart: (items: { productId: string; quantity: number; deliveryOptionId?: string }[]) =>
+    api.post<CartItem[]>(`/cart/merge`, { items }),
 };

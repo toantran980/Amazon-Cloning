@@ -6,7 +6,8 @@ export type CartAction =
   | { type: 'REMOVE_FROM_CART'; productId: string }
   | { type: 'UPDATE_QUANTITY'; productId: string; quantity: number }
   | { type: 'UPDATE_DELIVERY_OPTION'; productId: string; deliveryOptionId: string }
-  | { type: 'CLEAR_CART' };
+  | { type: 'CLEAR_CART' }
+  | { type: 'REPLACE_CART'; cart: CartItem[] };
 
 export function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
   switch (action.type) {
@@ -44,6 +45,8 @@ export function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
       );
     case 'CLEAR_CART':
       return [];
+    case 'REPLACE_CART':
+      return action.cart;
     default:
       return state;
   }

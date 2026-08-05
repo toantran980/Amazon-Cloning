@@ -39,6 +39,15 @@ describe('cartReducer', () => {
     const next = cartReducer(state, { type: 'CLEAR_CART' });
     expect(next).toEqual([]);
   });
+
+  it('replaces cart with server items', () => {
+    const state = [{ productId: 'abc', quantity: 2, deliveryOptionId: '1' }];
+    const next = cartReducer(state, {
+      type: 'REPLACE_CART',
+      cart: [{ productId: 'xyz', quantity: 1, deliveryOptionId: '2' }],
+    });
+    expect(next).toEqual([{ productId: 'xyz', quantity: 1, deliveryOptionId: '2' }]);
+  });
 });
 
 describe('loadCartFromStorage', () => {

@@ -1,10 +1,22 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import prisma from '../prismaClient';
 
 const router = Router();
+
+// Limit login/register attempts to prevent brute-force attacks.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
+router.use(authLimiter);
 
 const AuthSchema = z.object({
   email: z.string().email(),

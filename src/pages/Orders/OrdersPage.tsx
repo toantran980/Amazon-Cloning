@@ -50,9 +50,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<DisplayOrder[]>([]);
   const dispatch = useCartDispatch();
 
-  useEffect(() => {
+useEffect(() => {
     if (isAuthenticated) {
-      orderService.getOrders().then((data) => setOrders(data.map(toDisplayOrder)));
+      orderService.getOrders().then((data) => setOrders(data.orders.map(toDisplayOrder)));
     } else {
       setOrders(loadOrders().map(localToDisplay));
     }
