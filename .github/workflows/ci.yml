@@ -21,7 +21,10 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        run: npm ci
+        # Use `npm install` (not `npm ci`) because the lockfile is generated on
+        # Windows and omits Linux-only optional deps (e.g. @emnapi/*) that `npm ci`
+        # on ubuntu would otherwise demand.
+        run: npm install
 
       - name: Lint
         run: npm run lint
