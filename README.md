@@ -84,7 +84,7 @@ npx prisma db seed
 npm run dev        # http://localhost:3001
 ```
 
-Important: run Prisma commands from `server/` only. Running `npx prisma ...` from the repo root can prompt to install a different Prisma version.
+Important: run Prisma commands from `server/` only. Running `npx prisma ...` from the repo root can prompt to install a different Prisma version
 
 ## Environment Variables
 
