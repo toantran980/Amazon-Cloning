@@ -8,12 +8,13 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   passwordHash String
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime       @default(now())
   cart         CartItem[]
   orders       Order[]
+  refreshTokens RefreshToken[]
 }
 
 model Product {
@@ -40,12 +41,14 @@ model CartItem {
 }
 
 model Order {
-  id         String      @id
-  userId     String
-  orderDate  BigInt
-  totalCents Int
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  products   OrderItem[]
+  id                    String      @id
+  userId                String
+  orderDate             BigInt
+  totalCents            Int
+  paymentStatus         String      @default("pending")
+  stripePaymentIntentId String?
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products              OrderItem[]
 }
 
 model OrderItem {
@@ -58,3 +61,14 @@ model OrderItem {
   status                String @default("preparing")
   order                 Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revoked   Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+

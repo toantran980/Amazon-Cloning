@@ -4,6 +4,8 @@ function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+let isRefreshing = false;
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -12,11 +14,50 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: 'include', // Include HttpOnly cookies for refresh token rotation
+  };
+
+  let res = await fetch(`${BASE}${path}`, fetchOptions);
+
+  if (res.status === 401 && !path.includes('/auth/refresh') && !path.includes('/auth/login')) {
+    if (!isRefreshing) {
+      isRefreshing = true;
+      try {
+        const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+
+        if (refreshRes.ok) {
+          const data = await refreshRes.json();
+          if (data.token) {
+            localStorage.setItem('token', data.token);
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${data.token}`;
+            res = await fetch(`${BASE}${path}`, { ...options, headers, credentials: 'include' });
+          }
+        } else {
+          localStorage.removeItem('token');
+          window.dispatchEvent(new Event('auth:logout'));
+        }
+      } catch {
+        localStorage.removeItem('token');
+        window.dispatchEvent(new Event('auth:logout'));
+      } finally {
+        isRefreshing = false;
+      }
+    }
+  }
+
   if (res.status === 401) {
     localStorage.removeItem('token');
     window.dispatchEvent(new Event('auth:logout'));
   }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);

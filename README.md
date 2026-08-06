@@ -80,7 +80,28 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 
 ## 🚀 Getting Started
 
-### Frontend
+### 🐳 Docker Quickstart (Recommended)
+
+Run the complete app (PostgreSQL, Express API, and Nginx SPA) with a single command:
+
+```bash
+docker compose up --build
+```
+
+- **Frontend Application**: `http://localhost` (Port 80)
+- **Express API Server**: `http://localhost:3001`
+- **PostgreSQL Database**: `localhost:5432`
+
+To stop and remove containers:
+```bash
+docker compose down
+```
+
+---
+
+### Local Development (Without Docker)
+
+#### Frontend
 
 ```bash
 npm install
