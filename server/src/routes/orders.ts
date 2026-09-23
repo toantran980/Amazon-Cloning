@@ -4,12 +4,53 @@ import { z } from 'zod';
 import prisma from '../prismaClient';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { computeStatus } from '../orderStatus';
+import { computeOrderTotals, computePayloadHash, estimateDeliveryDate } from '../orderTotals';
 
 const router = Router();
 router.use(requireAuth);
 
 const MAX_PAGE_SIZE = 50;
 const DEFAULT_PAGE_SIZE = 10;
+
+const OrderStatusSchema = z.enum(['preparing', 'shipped', 'delivered']);
+
+function getIdempotentOrderId(userId: string, key: string): string {
+  const digest = createHash('sha256').update(`${userId}:${key}`).digest('hex');
+  return `idem_${digest.slice(0, 24)}`;
+}
+
+interface OrderRow {
+  id: string;
+  userId: string;
+  orderDate: bigint;
+  totalCents: number;
+}
+
+async function serializeOrder(order: OrderRow) {
+  const items = await prisma.orderItem.findMany({ where: { orderId: order.id } });
+  const productIds = Array.from(new Set(items.map((item) => item.productId)));
+  const products = productIds.length
+    ? await prisma.product.findMany({ where: { id: { in: productIds } } })
+    : [];
+  const productById = new Map(products.map((product) => [product.id, product]));
+
+  return {
+    id: order.id,
+    userId: order.userId,
+    orderDate: Number(order.orderDate),
+    totalCents: order.totalCents,
+    items: items.map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      quantity: item.quantity,
+      priceCents: productById.get(item.productId)?.priceCents ?? 0,
+      deliveryOptionId: item.deliveryOptionId,
+      estimatedDelivery: item.estimatedDeliveryDate,
+      status: computeStatus(order.orderDate, item.status),
+      product: productById.get(item.productId),
+    })),
+  };
+}
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1);
@@ -32,77 +73,20 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     }),
   ]);
 
-  const orderIds = orders.map((order) => order.id);
-  const orderItems = orderIds.length
-    ? await prisma.orderItem.findMany({ where: { orderId: { in: orderIds } } })
-    : [];
+  const serialized = await Promise.all(orders.map((order) => serializeOrder(order)));
 
-  const productIds = Array.from(new Set(orderItems.map((item) => item.productId)));
-  const products = productIds.length
-    ? await prisma.product.findMany({ where: { id: { in: productIds } } })
-    : [];
-
-  const productById = new Map(products.map((product) => [product.id, product]));
-  const itemsByOrderId = new Map<string, typeof orderItems>();
-
-  for (const item of orderItems) {
-    const list = itemsByOrderId.get(item.orderId) ?? [];
-    list.push(item);
-    itemsByOrderId.set(item.orderId, list);
-  }
-
-  const response = orders.map((order) => {
-    const normalizedItems = (itemsByOrderId.get(order.id) ?? []).map((item) => {
-      const product = productById.get(item.productId);
-      return {
-        id: item.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        priceCents: product?.priceCents ?? 0,
-        deliveryOptionId: item.deliveryOptionId,
-        estimatedDelivery: item.estimatedDeliveryDate,
-        status: computeStatus(order.orderDate, item.status),
-        product,
-      };
-    });
-
-    return {
-      id: order.id,
-      userId: order.userId,
-      orderDate: Number(order.orderDate),
-      totalCents: order.totalCents,
-      items: normalizedItems,
-    };
-  });
-
-  res.json({ orders: response, page, pageSize, total });
+  res.json({ orders: serialized, page, pageSize, total });
 });
 
-const OrderItemSchema = z.object({
+const OrderLineSchema = z.object({
   productId: z.string(),
   quantity: z.number().int().positive(),
   deliveryOptionId: z.string(),
-  estimatedDelivery: z.string().optional(),
-  estimatedDeliveryDate: z.string().optional(),
-});
-
-const NormalizedOrderItemSchema = OrderItemSchema.transform((item) => ({
-  productId: item.productId,
-  quantity: item.quantity,
-  deliveryOptionId: item.deliveryOptionId,
-  estimatedDeliveryDate: item.estimatedDeliveryDate ?? item.estimatedDelivery ?? '',
-})).refine((item) => item.estimatedDeliveryDate.length > 0, {
-  message: 'estimatedDeliveryDate is required',
 });
 
 const PlaceOrderSchema = z.object({
-  items: z.array(NormalizedOrderItemSchema).min(1),
+  items: z.array(OrderLineSchema).min(1),
 });
-
-function getIdempotentOrderId(userId: string, key: string): string {
-  const digest = createHash('sha256').update(`${userId}:${key}`).digest('hex');
-  return `idem_${digest.slice(0, 24)}`;
-}
 
 router.post('/', async (req: AuthRequest, res: Response) => {
   const parsed = PlaceOrderSchema.safeParse(req.body);
@@ -113,6 +97,9 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
   const userId = req.userId!;
   const idempotencyKey = req.header('Idempotency-Key')?.trim();
+  const idempotencyHash = idempotencyKey
+    ? computePayloadHash(parsed.data.items)
+    : null;
   const orderId = idempotencyKey ? getIdempotentOrderId(userId, idempotencyKey) : randomUUID();
 
   if (idempotencyKey) {
@@ -121,29 +108,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     });
 
     if (existing) {
-      const existingItems = await prisma.orderItem.findMany({ where: { orderId: existing.id } });
-      const productIds = Array.from(new Set(existingItems.map((item) => item.productId)));
-      const products = productIds.length
-        ? await prisma.product.findMany({ where: { id: { in: productIds } } })
-        : [];
-      const productById = new Map(products.map((product) => [product.id, product]));
+      // Reject replays whose payload differs from the original request.
+      if (existing.idempotencyHash && existing.idempotencyHash !== idempotencyHash) {
+        res.status(409).json({
+          error: 'Idempotency-Key was already used for a different request',
+        });
+        return;
+      }
 
-      res.status(200).json({
-        id: existing.id,
-        userId: existing.userId,
-        orderDate: Number(existing.orderDate),
-        totalCents: existing.totalCents,
-        items: existingItems.map((item) => ({
-          id: item.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          priceCents: productById.get(item.productId)?.priceCents ?? 0,
-          deliveryOptionId: item.deliveryOptionId,
-          estimatedDelivery: item.estimatedDeliveryDate,
-          status: computeStatus(existing.orderDate, item.status),
-          product: productById.get(item.productId),
-        })),
-      });
+      res.status(200).json(await serializeOrder(existing));
       return;
     }
   }
@@ -158,10 +131,33 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const totalCents = parsed.data.items.reduce((sum, item) => {
-    const product = productById.get(item.productId)!;
-    return sum + product.priceCents * item.quantity;
-  }, 0);
+  // Stock check: request cannot exceed what's available.
+  const quantityByProductId = parsed.data.items.reduce<Record<string, number>>((acc, item) => {
+    acc[item.productId] = (acc[item.productId] ?? 0) + item.quantity;
+    return acc;
+  }, {});
+
+  const outOfStock = Object.entries(quantityByProductId).filter(([productId, quantity]) => {
+    const product = productById.get(productId)!;
+    return quantity > product.stock;
+  });
+
+  if (outOfStock.length > 0) {
+    const detail = outOfStock
+      .map(([productId, quantity]) => {
+        const product = productById.get(productId)!;
+        return `${product.name} (requested ${quantity}, available ${product.stock})`;
+      })
+      .join('; ');
+    res.status(400).json({ error: `Insufficient stock: ${detail}` });
+    return;
+  }
+
+  // Server-trusted totals: product cost + shipping + estimated tax.
+  const totals = computeOrderTotals(
+    parsed.data.items,
+    (productId) => productById.get(productId)!.priceCents
+  );
 
   const order = await prisma.$transaction(async (tx) => {
     const createdOrder = await tx.order.create({
@@ -169,7 +165,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         id: orderId,
         userId,
         orderDate: BigInt(Date.now()),
-        totalCents,
+        totalCents: totals.totalCents,
+        idempotencyHash,
       },
     });
 
@@ -179,33 +176,71 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         productId: item.productId,
         quantity: item.quantity,
         deliveryOptionId: item.deliveryOptionId,
-        estimatedDeliveryDate: item.estimatedDeliveryDate,
+        // Server-authoritative estimate; client-supplied dates are ignored.
+        estimatedDeliveryDate: estimateDeliveryDate(item.deliveryOptionId),
       })),
     });
+
+    // Decrement stock with an optimistic guard; any failed update rolls back
+    // the whole order transaction.
+    const decrements = await Promise.all(
+      Object.entries(quantityByProductId).map(([productId, quantity]) =>
+        tx.product.updateMany({
+          where: { id: productId, stock: { gte: quantity } },
+          data: { stock: { decrement: quantity } },
+        })
+      )
+    );
+
+    if (decrements.some((result) => result.count === 0)) {
+      throw new Error('Insufficient stock at decrement time');
+    }
 
     await tx.cartItem.deleteMany({ where: { userId } });
 
     return createdOrder;
   });
 
-  const createdItems = await prisma.orderItem.findMany({ where: { orderId: order.id } });
+  res.status(201).json(await serializeOrder(order));
+});
 
-  res.status(201).json({
-    id: order.id,
-    userId: order.userId,
-    orderDate: Number(order.orderDate),
-    totalCents: order.totalCents,
-    items: createdItems.map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      quantity: item.quantity,
-      priceCents: productById.get(item.productId)?.priceCents ?? 0,
-      deliveryOptionId: item.deliveryOptionId,
-      estimatedDelivery: item.estimatedDeliveryDate,
-      status: computeStatus(order.orderDate, item.status),
-      product: productById.get(item.productId),
-    })),
+// Update order status (advance fulfilling orders, e.g. mark shipped/delivered).
+router.patch('/:orderId/status', async (req: AuthRequest, res: Response) => {
+  const parsed = OrderStatusSchema.safeParse(req.body?.status);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'status must be one of: preparing, shipped, delivered' });
+    return;
+  }
+
+  const order = await prisma.order.findFirst({
+    where: { id: req.params.orderId, userId: req.userId! },
   });
+
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  await prisma.orderItem.updateMany({
+    where: { orderId: order.id },
+    data: { status: parsed.data },
+  });
+
+  res.json(await serializeOrder(order));
+});
+
+// Fetch a single order (used by the tracking page while authenticated).
+router.get('/:orderId', async (req: AuthRequest, res: Response) => {
+  const order = await prisma.order.findFirst({
+    where: { id: req.params.orderId, userId: req.userId! },
+  });
+
+  if (!order) {
+    res.status(404).json({ error: 'Order not found' });
+    return;
+  }
+
+  res.json(await serializeOrder(order));
 });
 
 export default router;

@@ -17,12 +17,13 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 
 - 🛒 **Product listing** with debounced search and a virtualized grid
 - 🛍️ **Shopping cart** with quantity and delivery option management
-- 💳 **Checkout** and payment summary
-- 📦 **Order history** and package tracking with a status lifecycle (preparing → shipped → delivered)
+- 💳 **Checkout** with a mock card payment step (demo-only, no real payments) and payment summary
+- 📦 **Order history** and package tracking with a status lifecycle (preparing → shipped → delivered), including an in-app status control when signed in
 - 🔐 **JWT authentication** — register / sign in / sign out
 - 🔄 **Guest cart merge** — local guest cart is merged into the server cart on login
+- 💾 **Save for later** — park cart items in a saved list and move them back to the cart anytime
 - 🌐 API-backed cart and orders when logged in, with localStorage fallback for guests
-- 🧪 Unit tests (Vitest + Testing Library) and CI via GitHub Actions
+- 🧪 Unit tests (Vitest + Testing Library), Playwright end-to-end tests, and CI via GitHub Actions
 - 🚦 **Rate limiting** on auth routes to prevent brute-force attacks
 - 🪪 **Idempotent order creation** to prevent duplicate orders
 
@@ -154,11 +155,23 @@ If your DB password contains special URL characters (`@`, `&`, `#`, `/`, `%`), U
 ## 🧪 Testing
 
 ```bash
-npm run test        # Run unit tests (Vitest)
-npm run test:watch  # Watch mode
+npm run test        # Frontend unit tests (Vitest)
+npm run test:e2e    # Playwright E2E (static demo mode, hermetic)
+cd server && npm test       # Server unit + DB integration tests
 ```
 
-The test suite covers the cart reducer, order helpers, and the debounced search hook.
+The frontend suite covers the cart reducer, order helpers, and the debounced search hook. The server suite covers order-total math, idempotency payload hashing, delivery-date estimation, order-status lifecycle, and shared-vs-server constant parity, plus DB-backed `supertest` tests (auth/refresh rotation, cart merge, stock limits, order placement) that self-skip unless `TEST_DATABASE_URL` points at a throwaway Postgres.
+
+Additional browser coverage against the **real backend** is opt-in (files ending in `live.spec.ts`):
+
+```bash
+# 1. Start the backend with the same test database:
+#    DATABASE_URL=postgresql://.../amazon_clone_test npm run dev  (cd server)
+# 2. Run the live suite:
+set E2E_LIVE=1
+set TEST_DATABASE_URL=postgresql://.../amazon_clone_test
+npx playwright test e2e/live.spec.ts
+```
 
 The project is wired for **continuous integration** via GitHub Actions (see `.github/workflows/ci.yml`). On every push/PR to `main`, the pipeline runs:
 
@@ -166,6 +179,8 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 2. `npm run lint`
 3. `npm run test`
 4. `npm run build`
+
+The server CI job also runs `npm test` against a temporary Postgres service container (the DB-backed integration tests run there automatically).
 
 ---
 
@@ -175,17 +190,20 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 |--------|------|------|-------------|
 | POST | `/api/auth/register` | — | Create account (rate-limited) |
 | POST | `/api/auth/login` | — | Sign in, returns JWT (rate-limited) |
-| GET | `/api/products` | — | List all products |
+| GET | `/api/products` | — | List/search products (`?search=`, `?page=`, `?pageSize=`) |
 | GET | `/api/cart` | ✅ | Get cart items |
 | POST | `/api/cart` | ✅ | Add item to cart |
 | PATCH | `/api/cart/:productId` | ✅ | Update quantity/delivery |
 | DELETE | `/api/cart/:productId` | ✅ | Remove item |
 | DELETE | `/api/cart` | ✅ | Clear cart |
 | GET | `/api/orders` | ✅ | Get order history |
+| GET | `/api/orders/:id` | ✅ | Get one order |
 | POST | `/api/orders` | ✅ | Place order, clears cart, supports `Idempotency-Key` |
+| PATCH | `/api/orders/:id/status` | ✅ | Update status (`preparing`/`shipped`/`delivered`) |
 
-- `POST /api/orders` calculates order totals from **database product prices** instead of trusting client-sent pricing.
-- Repeating `POST /api/orders` with the same `Idempotency-Key` returns the existing order instead of creating a duplicate.
+- `POST /api/orders` calculates order totals from **database product prices** instead of trusting client-sent pricing, decrements product stock, and computes the delivery estimate server-side.
+- Repeating `POST /api/orders` with the same `Idempotency-Key` and matching payload returns the existing order (200); a changed payload with the same key returns **409**.
+- Orders that would exceed available stock are rejected with **400** before any inventory changes.
 - Auth routes are rate-limited (20 requests / 15 minutes) to prevent brute-force attacks.
 
 ---
@@ -199,6 +217,7 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 | `npm run build` | Type-check and build for production |
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run unit tests (Vitest) |
+| `npm run test:e2e` | Run Playwright E2E (static demo mode) |
 | `npm run preview` | Preview the production build |
 
 ### Backend (`cd server`)
@@ -209,12 +228,13 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 | `npm run db:migrate` | Run Prisma migrations |
 | `npm run db:seed` | Seed the database |
 | `npm run db:generate` | Regenerate Prisma client |
+| `npm test` | Run unit tests + DB integration tests (integration skipped without `TEST_DATABASE_URL`) |
 
 ---
 
 ## 🗺️ Roadmap
 
-See [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) for the production-readiness checklist and roadmap. The next major items are payment integration (Stripe/PayPal), refresh token rotation, monitoring/observability, and E2E tests.
+See [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) for the production-readiness checklist and roadmap. Refresh token rotation with HttpOnly cookies, auth rate limiting, Playwright E2E tests, server-side search, stock tracking, and CI/CD are implemented; remaining items are payment integration (Stripe/PayPal) and monitoring/observability.
 
 ## 📄 License
 

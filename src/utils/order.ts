@@ -1,7 +1,7 @@
 import { DEFAULT_ORDER_STATUS } from '../constants/order';
 import { calculateDeliveryDate, getDeliveryOption } from '../data/deliveryOptions';
-import { getProduct } from '../data/products';
-import type { CartItem, Order } from '../types';
+import { TAX_RATE } from '../../shared/checkout';
+import type { CartItem, Order, Product } from '../types';
 
 export interface CartTotals {
   productsCents: number;
@@ -11,18 +11,20 @@ export interface CartTotals {
   itemsCount: number;
 }
 
-export function calculateCartTotals(cart: CartItem[]): CartTotals {
+export function calculateCartTotals(cart: CartItem[], products: Product[]): CartTotals {
   let productsCents = 0;
   let shippingCents = 0;
 
+  const productById = new Map(products.map((product) => [product.id, product]));
+
   cart.forEach((item) => {
-    const product = getProduct(item.productId);
+    const product = productById.get(item.productId);
     const option = getDeliveryOption(item.deliveryOptionId);
     if (product) productsCents += product.priceCents * item.quantity;
     shippingCents += option.priceCents;
   });
 
-  const taxCents = Math.round(productsCents * 0.1);
+  const taxCents = Math.round(productsCents * TAX_RATE);
 
   return {
     productsCents,

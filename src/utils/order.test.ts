@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildOrderFromCart, calculateCartTotals } from './order';
+import { products } from '../data/products';
 
 describe('calculateCartTotals', () => {
   it('calculates product, shipping, tax, total, and item count', () => {
@@ -8,7 +9,7 @@ describe('calculateCartTotals', () => {
       { productId: '15b6fc6f-327a-4ec4-896f-486349e85a3d', quantity: 1, deliveryOptionId: '2' },
     ];
 
-    const totals = calculateCartTotals(cart);
+    const totals = calculateCartTotals(cart, products);
 
     expect(totals.itemsCount).toBe(3);
     expect(totals.productsCents).toBeGreaterThan(0);

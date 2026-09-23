@@ -8,6 +8,7 @@ export interface Product {
   keywords: string[];
   type?: string;
   sizeChartLink?: string;
+  stock?: number;
 }
 
 export interface CartItem {
@@ -26,6 +27,7 @@ export interface OrderItem {
   priceCents: number;
   deliveryOptionId: string;
   estimatedDelivery: string;
+  status?: string;
   product: Product;
 }
 
@@ -33,6 +35,7 @@ export interface Order {
   id: string;
   userId: string;
   orderDate: number;
+  totalCents: number;
   items: OrderItem[];
 }
 

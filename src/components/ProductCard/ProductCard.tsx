@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { Product } from '../../types';
 import { useCartDispatch } from '../../context/CartContext';
 import { formatCurrency } from '../../utils/money';
@@ -24,6 +25,8 @@ function ProductCard({ product }: ProductCardProps) {
   const [added, setAdded] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const outOfStock = (product.stock ?? 1) <= 0;
+
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -39,37 +42,47 @@ function ProductCard({ product }: ProductCardProps) {
 
   return (
     <div className="pt-[40px] pb-[25px] px-[25px] border-r border-b border-[#e7e7e7] flex flex-col">
-      <div className="flex justify-center items-center h-[180px] mb-[20px]">
-        <img
-          className="max-w-full max-h-full"
-          src={`/${product.image}`}
-          alt={product.name}
-        />
-      </div>
+      <Link to={`/product/${product.id}`} className="block">
+        <div className="flex justify-center items-center h-[180px] mb-[20px]">
+          <img
+            className="max-w-full max-h-full"
+            src={`/${product.image}`}
+            alt={product.name}
+          />
+        </div>
 
-      <p className="h-[40px] mb-[5px] line-clamp-2">{product.name}</p>
+        <p className="h-[40px] mb-[5px] line-clamp-2">{product.name}</p>
 
-      <div className="flex items-center mb-[10px]">
-        <StarRating stars={product.rating.stars} />
-        <span className="text-(--amazon-link) cursor-pointer mt-[3px]">{product.rating.count}</span>
-      </div>
+        <div className="flex items-center mb-[10px]">
+          <StarRating stars={product.rating.stars} />
+          <span className="text-(--amazon-link) cursor-pointer mt-[3px]">
+            {product.rating.count}
+          </span>
+        </div>
+      </Link>
 
       <div className="font-bold mb-[10px]">${formatCurrency(product.priceCents)}</div>
 
-      <div className="mb-[17px]">
-        <label htmlFor={`qty-${product.id}`} className="sr-only">Quantity</label>
-        <select
-          id={`qty-${product.id}`}
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-        >
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-      </div>
+      {outOfStock ? (
+        <p className="text-[#c40000] mb-[17px]">Out of stock</p>
+      ) : product.stock !== undefined && product.stock <= 5 ? (
+        <p className="text-[#c40000] mb-[17px]">Only {product.stock} left</p>
+      ) : (
+        <div className="mb-[17px]">
+          <label htmlFor={`qty-${product.id}`} className="sr-only">Quantity</label>
+          <select
+            id={`qty-${product.id}`}
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          >
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="flex-1" />
 
@@ -83,8 +96,9 @@ function ProductCard({ product }: ProductCardProps) {
       </div>
 
       <button
-        className="w-full p-[8px] rounded-[50px] text-[#212121] bg-(--amazon-yellow) border border-(--amazon-yellow-border) cursor-pointer shadow-[0_2px_5px_rgba(213,217,217,0.5)] hover:bg-[#f7ca00] hover:border-[#f2c200]"
+        className="w-full p-[8px] rounded-[50px] text-[#212121] bg-(--amazon-yellow) border border-(--amazon-yellow-border) cursor-pointer shadow-[0_2px_5px_rgba(213,217,217,0.5)] hover:bg-[#f7ca00] hover:border-[#f2c200] disabled:opacity-60 disabled:cursor-not-allowed"
         onClick={handleAddToCart}
+        disabled={outOfStock}
       >
         Add to Cart
       </button>

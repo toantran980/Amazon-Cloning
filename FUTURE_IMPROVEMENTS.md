@@ -35,12 +35,12 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 
 ### Required for Real Production (not done yet)
 
-- [x] ~~Payment provider integration (Stripe / PayPal) with server-side webhook verification (`POST /api/payments/create-intent` & `/webhook`)~~
+- [ ] Payment provider integration (Stripe / PayPal) — **removed from the codebase**: `POST /api/payments/create-intent` & `/webhook` were deleted; checkout is now a simulated demo with server-trusted totals.
 - [x] ~~Rate limiting and brute-force protection on auth routes (`express-rate-limit`)~~
 - [x] ~~Refresh token rotation with HttpOnly cookies (`POST /api/auth/refresh`)~~
 - [ ] Production monitoring/observability (Sentry + health checks + centralized uptime logs)
-- [x] ~~CI/CD pipeline with quality gates (GitHub Actions for lint/test/build)~~
-- [ ] E2E tests for shopping, checkout, order tracking (Playwright integration)
+- [ ] CI/CD pipeline with quality gates (no `.github/workflows` exists; run `npm run lint`, `npm run test`, `npm run test:e2e`, `npm run build` manually)
+- [x] E2E tests for shopping, checkout, order tracking (Playwright integration, `e2e/`)
 - [x] ~~Security headers and CSP (`helmet`)~~
 - [ ] Database automated backup & point-in-time recovery (PITR) strategy
 - [x] ~~CartContext sync with API on login (guest cart auto-merge endpoint `/api/cart/merge`)~~
@@ -89,7 +89,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 
 #### Phase 4 Progress: Reliability, Infrastructure & Security (August 2026 Update) ✅
 
-- ~~**GitHub Actions CI Workflow**: Added `.github/workflows/ci.yml` running lint, vitest tests, and Vite build validation on all pushes and PRs.~~
+- ~~**GitHub Actions CI Workflow**: Routed to README TODO — no `.github/workflows/ci.yml` exists in the repo.~~
 - ~~**Security & Protection**: Added `helmet` security headers, custom CSP rules, and `express-rate-limit` rate limiters on sensitive auth routes (`/login`, `/register`).~~
 - ~~**Structured JSON Logging**: Implemented Pino logger (`server/src/logger.ts`) for formatted, high-performance structured backend output.~~
 - ~~**Caching & Pagination**: Integrated in-memory caching for products (`GET /api/products`) and orders pagination support (`GET /api/orders?page=1&limit=10`).~~
@@ -100,9 +100,11 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 
 ### Upcoming Phases & Technical Specifications
 
-### Phase 5: Payment Integration & Advanced Auth ✅ Done
+### Phase 5: Payment Integration & Advanced Auth — Removed & Done
 
-#### 1. ~~Stripe PaymentIntents & Server-Side Verification~~
+> Stripe payment integration was later **removed** during a cleanup (closed #... / deleted `server/src/routes/payments.ts` & `src/services/paymentService.ts`). Checkout is a simulated demo. Auth hardening below remains.
+
+#### 1. ~~Stripe PaymentIntents & Server-Side Verification~~ (Removed)
 ```
 [Client] ---> POST /api/payments/create-intent ---> [Express Backend]
                                                             |
@@ -148,9 +150,9 @@ Executes Stripe.js confirmCardPayment()
 
 | Feature Area | Technical Approach & Architecture |
 | :--- | :--- |
-| **Product Search & Filtering** | PostgreSQL full-text search (`tsvector` index on title/description) or Algolia integration for fast fuzzy search, category facets, and price range filters. |
+| **Product Search & Filtering** | ~~PostgreSQL full-text search (`tsvector` index on title/description) or Algolia integration for fast fuzzy search, category facets, and price range filters.~~ Basic server-side search (name + keywords) shipped: `GET /api/products?search=`. |
 | **Product Reviews & Ratings** | Database models `Review` and `Rating` with user constraints (1 review per product per verified purchase). Average rating calculation trigger/cached field. |
-| **Inventory Management** | Stock quantity tracking per SKU. Pessimistic lock during checkout flow (`SELECT ... FOR UPDATE`) to prevent double-selling limited stock items. |
+| **Inventory Management** | ~~Stock quantity tracking per SKU. Pessimistic lock during checkout flow (`SELECT ... FOR UPDATE`) to prevent double-selling limited stock items.~~ Basic stock tracking + optimistic decrement shipped: `Product.stock` column, gated/decreemented in the order transaction. |
 | **Wishlist & Save for Later** | User `Wishlist` and `CartItem.savedForLater` boolean flag support in frontend UI and backend Prisma schema. |
 | **Transactional Email** | Nodemailer / Resend service integration to dispatch automated HTML order confirmation receipts and tracking updates. |
 
@@ -161,10 +163,10 @@ Executes Stripe.js confirmCardPayment()
 1. **Backend & Persistence**: Real Express backend, PostgreSQL database, Prisma ORM schema, JWT Authentication, Zod API validation.
 2. **Checkout Safety**: Trusted server-side order calculation, idempotency key header handling, order status lifecycle management.
 3. **Cart Integration**: Automated guest cart local-to-server sync (`POST /api/cart/merge`) on authentication.
-4. **CI/CD Quality Gates**: GitHub Actions workflow (`.github/workflows/ci.yml`) enforcing lint checks, Vitest suite, and TypeScript build verification.
+4. **CI/CD Quality Gates**: *Not present* — no GitHub Actions workflow file exists in the repo (run quality gates manually).
 5. **Security & Hardening**: Helmet security headers, CSP rules, Express auth rate limiting, Pino structured logging.
 6. **Container Infrastructure**: Production-ready multi-stage `Dockerfile`, `docker-compose.yml`, and `nginx.conf` reverse proxy configuration.
-7. **Payment Gateway Integration (Sprint A)**: Stripe PaymentIntents endpoint (`POST /api/payments/create-intent`), demo payment intent sandbox fallback, and webhook signature verification (`POST /api/payments/webhook`).
+7. **Payment Gateway Integration (Sprint A)**: ~~Stripe PaymentIntents endpoint (`POST /api/payments/create-intent`), demo payment intent sandbox fallback, webhook signature verification~~ — **removed during cleanup**; orders instead use server-trusted totals with idempotency.
 8. **Auth Hardening & Token Rotation (Sprint B)**: HttpOnly, SameSite, Secure cookie-based refresh token rotation (`POST /api/auth/refresh`), token family breach mitigation, and silent frontend token renewal client wrapper.
 9. **Container Health Readiness (Sprint D)**: Probe endpoint (`GET /healthz`) testing PostgreSQL connectivity via Prisma and reporting uptime and status.
 10. **E2E Test Suite (Sprint C)**: Playwright test suite with 7/7 passing tests covering home page, search filtering, cart badge, auth flow, checkout navigation, and orders page routing. Fixed react-window pointer-event interception via JS dispatch.
@@ -172,7 +174,7 @@ Executes Stripe.js confirmCardPayment()
 
 ### ⏳ Remaining Sprints
 
-- [x] ~~**Sprint A**: Stripe PaymentIntents & Webhook handler implementation.~~
+- [x] ~~**Sprint A**: Stripe PaymentIntents & Webhook handler implementation — *removed; checkout is a simulated demo with server-trusted totals*.**~~
 - [x] ~~**Sprint B**: HttpOnly cookie-based Refresh Token Rotation with token reuse detection.~~
 - [x] ~~**Sprint C**: Playwright E2E test suite covering shopping and order workflows.~~
 - [x] ~~**Sprint D**: Health monitoring & `/healthz` readiness probe integration.~~
@@ -181,6 +183,6 @@ Executes Stripe.js confirmCardPayment()
 ## Final Advice
 
 If your goal is to showcase a feature-complete portfolio project, **deploy now** using the provided Docker compose or Railway configs.
-Your app now features server-side payment processing foundation, HttpOnly token rotation security, health probes, and complete API cart sync.
+Your app features HttpOnly token rotation security, health probes, complete API cart sync, and a simulated checkout with server-trusted order totals.
 
 

@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import CartItem from '../../components/CartItem/CartItem';
+import SavedForLaterItem from '../../components/SavedForLaterItem/SavedForLaterItem';
 import PaymentSummary from '../../components/PaymentSummary/PaymentSummary';
 
 export default function CheckoutPage() {
   const { cart, cartQuantity } = useCart();
+
+  const activeCart = cart.filter((item) => !item.savedForLater);
+  const savedItems = cart.filter((item) => item.savedForLater);
 
   return (
     <>
@@ -47,9 +51,36 @@ export default function CheckoutPage() {
         ) : (
           <div className="grid grid-cols-[1fr_350px] gap-x-[12px] items-start max-[1000px]:grid-cols-1">
             <div>
-              {cart.map((item) => (
-                <CartItem key={item.productId} cartItem={item} />
-              ))}
+              <p className="font-bold mb-[10px]">Your items</p>
+              {activeCart.length === 0 && !savedItems.length ? null : (
+                <div className="mb-[40px]">
+                  {activeCart.length === 0 ? (
+                    <p className="text-[#787878] mb-[12px]">
+                      You have no items in your cart right now.
+                    </p>
+                  ) : null}
+                  <div className="flex flex-col gap-y-[35px] mb-[20px]">
+                    {activeCart.map((item) => (
+                      <CartItem key={item.productId} cartItem={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {savedItems.length > 0 && (
+                <div className="border-t border-[#e7e7e7] pt-[30px]">
+                  <h2 className="font-bold text-[20px] mb-[15px]">Saved for later</h2>
+                  <p className="text-[14px] text-[#787878] mb-[20px]">
+                    {savedItems.length} {savedItems.length === 1 ? 'item' : 'items'} saved — move
+                    them back to your cart when you're ready to buy.
+                  </p>
+                  <div className="flex flex-col gap-y-[20px]">
+                    {savedItems.map((item) => (
+                      <SavedForLaterItem key={item.productId} cartItem={item} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <PaymentSummary />
           </div>

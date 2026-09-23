@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import type { CartItem as CartItemType } from '../../types';
 import { useCartDispatch } from '../../context/CartContext';
-import { getProduct } from '../../data/products';
+import { useProducts } from '../../context/ProductsContext';
 import { deliveryOptions, calculateDeliveryDate, getDeliveryOption } from '../../data/deliveryOptions';
 import { formatCurrency } from '../../utils/money';
 
@@ -14,6 +14,7 @@ const linkPrimaryClass =
 
 function CartItem({ cartItem }: CartItemProps) {
   const dispatch = useCartDispatch();
+  const { getProduct } = useProducts();
   const product = getProduct(cartItem.productId);
   const [isEditing, setIsEditing] = useState(false);
   const [editQuantity, setEditQuantity] = useState(String(cartItem.quantity));
@@ -86,6 +87,14 @@ function CartItem({ cartItem }: CartItemProps) {
             )}
             <button className={linkPrimaryClass} onClick={handleDelete}>
               Delete
+            </button>
+            <button
+              className={linkPrimaryClass}
+              onClick={() =>
+                dispatch({ type: 'TOGGLE_SAVE_FOR_LATER', productId: cartItem.productId })
+              }
+            >
+              Save for later
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@ export type CartAction =
   | { type: 'REMOVE_FROM_CART'; productId: string }
   | { type: 'UPDATE_QUANTITY'; productId: string; quantity: number }
   | { type: 'UPDATE_DELIVERY_OPTION'; productId: string; deliveryOptionId: string }
+  | { type: 'TOGGLE_SAVE_FOR_LATER'; productId: string }
   | { type: 'CLEAR_CART' }
   | { type: 'REPLACE_CART'; cart: CartItem[] };
 
@@ -43,6 +44,12 @@ export function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
           ? { ...item, deliveryOptionId: action.deliveryOptionId }
           : item
       );
+    case 'TOGGLE_SAVE_FOR_LATER':
+      return state.map((item) =>
+        item.productId === action.productId
+          ? { ...item, savedForLater: !item.savedForLater }
+          : item
+      );
     case 'CLEAR_CART':
       return [];
     case 'REPLACE_CART':
@@ -76,5 +83,8 @@ export function loadCartFromStorage(rawValue: string | null): CartItem[] {
 }
 
 export function calculateCartQuantity(cart: CartItem[]): number {
-  return cart.reduce((total, item) => total + item.quantity, 0);
+  return cart.reduce(
+    (total, item) => total + (item.savedForLater ? 0 : item.quantity),
+    0
+  );
 }

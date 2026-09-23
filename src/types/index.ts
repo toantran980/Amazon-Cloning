@@ -12,12 +12,14 @@ export interface Product {
   keywords?: string[];
   type?: string;
   sizeChartLink?: string;
+  stock?: number;
 }
 
 export interface CartItem {
   productId: string;
   quantity: number;
   deliveryOptionId: string;
+  savedForLater?: boolean;
 }
 
 export interface DeliveryOption {

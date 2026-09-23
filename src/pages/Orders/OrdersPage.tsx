@@ -2,32 +2,41 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import dayjs from 'dayjs';
 import Header from '../../components/Header/Header';
+import Spinner from '../../components/Spinner/Spinner';
 import { loadOrders } from '../../data/orders';
-import { getProduct } from '../../data/products';
 import { useCartDispatch } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { orderService } from '../../services/orderService';
+import { useProducts } from '../../context/ProductsContext';
+import { orderService, type OrderStatusValue } from '../../services/orderService';
+import { ORDER_STATUS_LABELS, ORDER_STATUS_STEPS } from '../../constants/order';
 import { formatCurrency } from '../../utils/money';
 import type { Order as ApiOrder } from '../../../shared/types';
 import type { Order as LocalOrder } from '../../types';
+
+type DisplayOrderProduct = {
+  productId: string;
+  quantity: number;
+  estimatedDeliveryDate: string;
+  status?: string;
+};
 
 type DisplayOrder = {
   id: string;
   orderDate: number;
   totalCents: number;
-  products: { productId: string; quantity: number; estimatedDeliveryDate: string }[];
+  products: DisplayOrderProduct[];
 };
 
 function toDisplayOrder(o: ApiOrder): DisplayOrder {
-  const totalCents = o.items.reduce((s, i) => s + i.priceCents * i.quantity, 0);
   return {
     id: o.id,
     orderDate: o.orderDate,
-    totalCents,
+    totalCents: o.totalCents,
     products: o.items.map((i) => ({
       productId: i.productId,
       quantity: i.quantity,
       estimatedDeliveryDate: i.estimatedDelivery,
+      status: i.status,
     })),
   };
 }
@@ -41,21 +50,45 @@ function localToDisplay(o: LocalOrder): DisplayOrder {
       productId: p.productId,
       quantity: p.quantity,
       estimatedDeliveryDate: p.estimatedDeliveryDate,
+      status: p.status,
     })),
   };
 }
 
 export default function OrdersPage() {
   const { isAuthenticated } = useAuth();
+  const { getProduct } = useProducts();
   const [orders, setOrders] = useState<DisplayOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const dispatch = useCartDispatch();
 
-useEffect(() => {
-    if (isAuthenticated) {
-      orderService.getOrders().then((data) => setOrders(data.orders.map(toDisplayOrder)));
-    } else {
-      setOrders(loadOrders().map(localToDisplay));
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (isAuthenticated) {
+        setLoading(true);
+        setError('');
+        try {
+          const data = await orderService.getOrders(1, 50);
+          if (!cancelled) setOrders(data.orders.map(toDisplayOrder));
+        } catch (err) {
+          if (!cancelled) {
+            setError(err instanceof Error ? err.message : 'Failed to load orders');
+          }
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      } else {
+        setOrders(loadOrders().map(localToDisplay));
+      }
     }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   const handleBuyAgain = useCallback(
@@ -69,6 +102,21 @@ useEffect(() => {
     [dispatch]
   );
 
+  const handleStatusChange = useCallback(async (orderId: string, status: OrderStatusValue) => {
+    try {
+      await orderService.updateOrderStatus(orderId, status);
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? { ...order, products: order.products.map((p) => ({ ...p, status })) }
+            : order
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update status');
+    }
+  }, []);
+
   const shopLinkClass = 'text-[#017cb6] ml-[8px] hover:text-[#c45000]';
   const amazonButtonClass =
     'text-[#212121] bg-[#ffd814] border border-[#fcd200] cursor-pointer shadow-[0_2px_5px_rgba(213,217,217,0.5)] hover:bg-[#f7ca00]';
@@ -79,7 +127,11 @@ useEffect(() => {
       <main className="max-w-[850px] mt-[90px] mb-[100px] px-[20px] mx-auto">
         <h1 className="font-bold text-[26px] mb-[25px]">Your Orders</h1>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <Spinner label="Loading orders…" />
+        ) : error ? (
+          <div className="text-center p-[40px] text-[18px] text-[#c40000]">{error}</div>
+        ) : orders.length === 0 ? (
           <div className="text-center p-[40px] text-[18px]">
             <p>You have no orders yet.</p>
             <Link to="/" className={shopLinkClass}>Start shopping →</Link>
@@ -99,6 +151,30 @@ useEffect(() => {
                       <span className="font-medium">Total: </span>
                       <span>${formatCurrency(order.totalCents)}</span>
                     </div>
+                    {isAuthenticated && order.products.length > 0 && (
+                      <div className="max-[575px]:grid max-[575px]:grid-cols-[auto_1fr]">
+                        <label
+                          className="font-medium mr-[6px]"
+                          htmlFor={`status-${order.id}`}
+                        >
+                          Status:
+                        </label>
+                        <select
+                          id={`status-${order.id}`}
+                          className="border border-[#d5d9d9] rounded-[4px] px-[6px] py-[4px] text-[14px]"
+                          value={order.products[0].status ?? 'preparing'}
+                          onChange={(e) =>
+                            handleStatusChange(order.id, e.target.value as OrderStatusValue)
+                          }
+                        >
+                          {ORDER_STATUS_STEPS.map((step) => (
+                            <option key={step} value={step}>
+                              {ORDER_STATUS_LABELS[step]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                   <div className="shrink max-[575px]:grid max-[575px]:grid-cols-[auto_1fr]">
                     <span className="font-medium">Order ID: </span>

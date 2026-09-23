@@ -1,20 +1,21 @@
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onSearch?: (query: string) => void;
+  searchQuery?: string;
 }
 
-function Header({ onSearch }: HeaderProps) {
+function Header({ onSearch, searchQuery }: HeaderProps) {
   const { cartQuantity } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
+  const query = searchQuery ?? '';
   const navigate = useNavigate();
 
   function handleSearch() {
-    onSearch?.(searchQuery);
+    onSearch?.(query);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -47,11 +48,8 @@ function Header({ onSearch }: HeaderProps) {
             className="flex-1 w-0 text-[16px] h-[38px] pl-[15px] border-none rounded-l-[4px] rounded-r-none outline-none"
             type="text"
             placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              onSearch(e.target.value);
-            }}
+            value={query}
+            onChange={(e) => onSearch?.(e.target.value)}
             onKeyDown={handleKeyDown}
           />
           <button
