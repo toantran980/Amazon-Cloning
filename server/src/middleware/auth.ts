@@ -12,8 +12,11 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     return;
   }
   const token = header.slice(7);
+  // Must match the signing default in routes/auth.ts (createAndSetTokens).
+  // In production index.ts refuses to start without a real JWT_SECRET.
+  const secret = process.env.JWT_SECRET || 'fallback-secret-for-demo';
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const payload = jwt.verify(token, secret) as { userId: string };
     req.userId = payload.userId;
     next();
   } catch {
