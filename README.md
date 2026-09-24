@@ -241,7 +241,7 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 
 ## 🗺️ Roadmap
 
-See [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) for the production-readiness checklist and roadmap. Refresh token rotation with HttpOnly cookies, auth rate limiting, Playwright E2E tests, server-side search, stock tracking, and CI/CD are implemented; remaining items are payment integration (Stripe/PayPal) and monitoring/observability.
+See [FUTURE_IMPROVEMENTS.md](./FUTURE_IMPROVEMENTS.md) for the production-readiness checklist and roadmap. Refresh token rotation with HttpOnly cookies, auth rate limiting, Playwright E2E tests (hermetic + live backend), server-side search with a results toolbar, stock tracking, save-for-later, GET retry-once, and CI/CD (including a full-stack live E2E job) are implemented; remaining items are payment integration (Stripe/PayPal) and monitoring/observability.
 
 ## 📄 License
 

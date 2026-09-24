@@ -26,7 +26,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 
 - [X] Build succeeds (`npm run build` passing cleanly)
 - [X] App runs without runtime errors in core flow
-- [X] Basic unit tests pass (9/9 Vitest unit tests green)
+- [X] Unit tests pass (41/41 Vitest tests green, incl. cart reducer, order helpers, product filter/sort, highlight)
 - [X] Error boundary exists
 - [X] Accessible labels added to key controls
 - [X] Tailwind CSS v4 styling
@@ -39,8 +39,8 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 - [x] ~~Rate limiting and brute-force protection on auth routes (`express-rate-limit`)~~
 - [x] ~~Refresh token rotation with HttpOnly cookies (`POST /api/auth/refresh`)~~
 - [ ] Production monitoring/observability (Sentry + health checks + centralized uptime logs)
-- [ ] CI/CD pipeline with quality gates (no `.github/workflows` exists; run `npm run lint`, `npm run test`, `npm run test:e2e`, `npm run build` manually)
-- [x] E2E tests for shopping, checkout, order tracking (Playwright integration, `e2e/`)
+- [x] CI/CD pipeline with quality gates (`.github/workflows/ci.yml`: frontend lint/test/build, server tests against Postgres service, hermetic Playwright E2E, and a full-stack live E2E job)
+- [x] E2E tests for shopping, checkout, order tracking (Playwright hermetic + opt-in live backend suite, `e2e/`)
 - [x] ~~Security headers and CSP (`helmet`)~~
 - [ ] Database automated backup & point-in-time recovery (PITR) strategy
 - [x] ~~CartContext sync with API on login (guest cart auto-merge endpoint `/api/cart/merge`)~~
@@ -62,7 +62,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 > ```env
 > DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/amazon_clone"
 > JWT_SECRET="replace-with-a-long-random-secret"
-> PORT=5000
+> PORT=3001
 > NODE_ENV="development"
 > ```
 >
@@ -92,7 +92,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 - ~~**GitHub Actions CI Workflow**: Routed to README TODO — no `.github/workflows/ci.yml` exists in the repo.~~
 - ~~**Security & Protection**: Added `helmet` security headers, custom CSP rules, and `express-rate-limit` rate limiters on sensitive auth routes (`/login`, `/register`).~~
 - ~~**Structured JSON Logging**: Implemented Pino logger (`server/src/logger.ts`) for formatted, high-performance structured backend output.~~
-- ~~**Caching & Pagination**: Integrated in-memory caching for products (`GET /api/products`) and orders pagination support (`GET /api/orders?page=1&limit=10`).~~
+- ~~**Caching & Pagination**: Integrated in-memory caching for products (`GET /api/products`) and orders pagination support (`GET /api/orders?page=1&pageSize=10`).~~
 - ~~**Containerization & DevOps**: Added multi-stage `Dockerfile`, `docker-compose.yml` (PostgreSQL + Express + Nginx), and `nginx.conf` reverse-proxy setup for local containerized development and cloud readiness.~~
 - ~~**UX Polish**: Added `DemoModeBanner` informing users about the non-production payment sandbox status.~~
 
@@ -150,10 +150,10 @@ Executes Stripe.js confirmCardPayment()
 
 | Feature Area | Technical Approach & Architecture |
 | :--- | :--- |
-| **Product Search & Filtering** | ~~PostgreSQL full-text search (`tsvector` index on title/description) or Algolia integration for fast fuzzy search, category facets, and price range filters.~~ Basic server-side search (name + keywords) shipped: `GET /api/products?search=`. |
+| **Product Search & Filtering** | ~~PostgreSQL full-text search (`tsvector` index on title/description) or Algolia integration for fast fuzzy search, category facets, and price range filters.~~ Basic server-side search (name + keywords) shipped: `GET /api/products?search=`, plus a client results toolbar (sort by price/rating, "in stock only") with highlighted query matches in the grid. |
 | **Product Reviews & Ratings** | Database models `Review` and `Rating` with user constraints (1 review per product per verified purchase). Average rating calculation trigger/cached field. |
 | **Inventory Management** | ~~Stock quantity tracking per SKU. Pessimistic lock during checkout flow (`SELECT ... FOR UPDATE`) to prevent double-selling limited stock items.~~ Basic stock tracking + optimistic decrement shipped: `Product.stock` column, gated/decreemented in the order transaction. |
-| **Wishlist & Save for Later** | User `Wishlist` and `CartItem.savedForLater` boolean flag support in frontend UI and backend Prisma schema. |
+| **Wishlist & Save for Later** | ~~User `Wishlist` and `CartItem.savedForLater` boolean flag support in frontend UI and backend Prisma schema.~~ Done: `Save for later` / `Move to cart` on the checkout page, persisted in the guest cart and server `CartItem.savedForLater`. |
 | **Transactional Email** | Nodemailer / Resend service integration to dispatch automated HTML order confirmation receipts and tracking updates. |
 
 ---
@@ -163,14 +163,17 @@ Executes Stripe.js confirmCardPayment()
 1. **Backend & Persistence**: Real Express backend, PostgreSQL database, Prisma ORM schema, JWT Authentication, Zod API validation.
 2. **Checkout Safety**: Trusted server-side order calculation, idempotency key header handling, order status lifecycle management.
 3. **Cart Integration**: Automated guest cart local-to-server sync (`POST /api/cart/merge`) on authentication.
-4. **CI/CD Quality Gates**: *Not present* — no GitHub Actions workflow file exists in the repo (run quality gates manually).
+4. **CI/CD Quality Gates**: ✅ GitHub Actions pipeline (`.github/workflows/ci.yml`) with four jobs: frontend lint/test/build, server tests against a Postgres service, hermetic Playwright E2E, and a full-stack live E2E job that starts the built backend. Includes Playwright browser caching and artifact upload on failure.
 5. **Security & Hardening**: Helmet security headers, CSP rules, Express auth rate limiting, Pino structured logging.
 6. **Container Infrastructure**: Production-ready multi-stage `Dockerfile`, `docker-compose.yml`, and `nginx.conf` reverse proxy configuration.
 7. **Payment Gateway Integration (Sprint A)**: ~~Stripe PaymentIntents endpoint (`POST /api/payments/create-intent`), demo payment intent sandbox fallback, webhook signature verification~~ — **removed during cleanup**; orders instead use server-trusted totals with idempotency.
 8. **Auth Hardening & Token Rotation (Sprint B)**: HttpOnly, SameSite, Secure cookie-based refresh token rotation (`POST /api/auth/refresh`), token family breach mitigation, and silent frontend token renewal client wrapper.
 9. **Container Health Readiness (Sprint D)**: Probe endpoint (`GET /healthz`) testing PostgreSQL connectivity via Prisma and reporting uptime and status.
-10. **E2E Test Suite (Sprint C)**: Playwright test suite with 7/7 passing tests covering home page, search filtering, cart badge, auth flow, checkout navigation, and orders page routing. Fixed react-window pointer-event interception via JS dispatch.
-11. **Quality Validation**: Frontend lint clean (0 errors), Server TypeScript clean (0 errors), 9/9 Vitest unit tests, 7/7 Playwright E2E tests passing.
+10. **E2E Test Suite (Sprint C)**: Playwright suite with **7/7 hermetic tests** (static demo mode) plus an opt-in **live backend suite (7/7)** covering search, detail, add-to-cart, guest checkout with the demo card, save-for-later, and signed-in order status control. The live suite runs serially against a throwaway Postgres and is executed in CI.
+11. **Quality Validation**: Frontend lint clean (0 errors), Server TypeScript clean (0 errors), 41/41 Vitest unit tests, 7/7 hermetic + 7/7 live Playwright E2E tests passing.
+12. **Search & Browse UX**: Results toolbar (sort by price/rating, "in stock only"), `<mark>` query highlighting in product cards, and a skeleton loader while server-side search is in flight.
+13. **Resilience**: Idempotent GET requests auto-retry once on transient network errors (timeouts/logouts excluded), plus refresh-token flow and per-request timeout/abort handling in `src/services/api.ts`.
+14. **Dev Ergonomics**: Root scripts (`npm run dev:server`, `test:server`, `test:e2e:live`), `server/.env.example`, and a seeded demo account (`demo@example.com` / `password123`).
 
 ### ⏳ Remaining Sprints
 
