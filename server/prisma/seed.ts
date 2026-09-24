@@ -1,6 +1,12 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+// Demo login for local development (also used by the live E2E tests).
+const DEMO_EMAIL = 'demo@example.com';
+const DEMO_PASSWORD = 'password123';
 
 const products = [
   { id: 'e43638ce-6aa0-4b85-b27f-e1d07eb678c6', image: 'images/products/athletic-cotton-socks-6-pairs.jpg', name: 'Black and Gray Athletic Cotton Socks - 6 Pairs', ratingStars: 4.5, ratingCount: 87, priceCents: 1090, keywords: ['socks', 'sports', 'apparel'] },
@@ -57,6 +63,17 @@ async function main() {
     });
   }
   console.log(`Seeded ${products.length} products.`);
+
+  console.log('Seeding demo user...');
+  await prisma.user.upsert({
+    where: { email: DEMO_EMAIL },
+    update: {},
+    create: {
+      email: DEMO_EMAIL,
+      passwordHash: await bcrypt.hash(DEMO_PASSWORD, 10),
+    },
+  });
+  console.log(`Seeded demo user (${DEMO_EMAIL} / ${DEMO_PASSWORD}).`);
 }
 
 main()

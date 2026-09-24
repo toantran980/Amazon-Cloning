@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../../types';
 import { useCartDispatch } from '../../context/CartContext';
 import { formatCurrency } from '../../utils/money';
+import { highlightText } from '../../utils/highlight';
 
 interface ProductCardProps {
   product: Product;
+  highlight?: string;
 }
 
 function StarRating({ stars }: { stars: number }) {
@@ -19,7 +21,7 @@ function StarRating({ stars }: { stars: number }) {
   );
 }
 
-function ProductCard({ product }: ProductCardProps) {
+function ProductCard({ product, highlight }: ProductCardProps) {
   const dispatch = useCartDispatch();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -51,7 +53,7 @@ function ProductCard({ product }: ProductCardProps) {
           />
         </div>
 
-        <p className="h-[40px] mb-[5px] line-clamp-2">{product.name}</p>
+        <p className="h-[40px] mb-[5px] line-clamp-2">{highlightText(product.name, highlight)}</p>
 
         <div className="flex items-center mb-[10px]">
           <StarRating stars={product.rating.stars} />

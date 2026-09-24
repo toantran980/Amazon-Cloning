@@ -6,11 +6,13 @@ import ProductCard from '../ProductCard/ProductCard';
 
 interface VirtualizedProductGridProps {
   products: Product[];
+  highlight?: string;
 }
 
 interface GridData {
   products: Product[];
   columnCount: number;
+  highlight?: string;
 }
 
 const CARD_MIN_WIDTH = 260;
@@ -22,18 +24,18 @@ function getColumnCount(width: number): number {
 
 type ProductCellProps = CellComponentProps<GridData>;
 
-function Cell({ columnIndex, rowIndex, style, products, columnCount }: ProductCellProps) {
+function Cell({ columnIndex, rowIndex, style, products, columnCount, highlight }: ProductCellProps) {
   const index = rowIndex * columnCount + columnIndex;
   if (index >= products.length) return null;
 
   return (
     <div style={style} className="p-0">
-      <ProductCard product={products[index]} />
+      <ProductCard product={products[index]} highlight={highlight} />
     </div>
   );
 }
 
-function VirtualizedProductGrid({ products }: VirtualizedProductGridProps) {
+function VirtualizedProductGrid({ products, highlight }: VirtualizedProductGridProps) {
   return (
     <AutoSizer
       renderProp={({ height, width }: { height: number | undefined; width: number | undefined }) => {
@@ -42,7 +44,7 @@ function VirtualizedProductGrid({ products }: VirtualizedProductGridProps) {
         const columnCount = getColumnCount(safeWidth);
         const rowCount = Math.ceil(products.length / columnCount);
         const columnWidth = Math.floor(safeWidth / columnCount);
-        const itemData = { products, columnCount };
+        const itemData = { products, columnCount, highlight };
 
         return (
           <Grid

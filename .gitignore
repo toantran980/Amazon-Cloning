@@ -16,6 +16,7 @@ lerna-debug.log*
 
 # Test reports
 playwright-report/
+test-results/
 
 # Environment variables
 .env

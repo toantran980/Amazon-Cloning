@@ -15,7 +15,7 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 
 ## ✨ Features
 
-- 🛒 **Product listing** with debounced search and a virtualized grid
+- 🛒 **Product listing** with debounced search, highlighted matches, a results toolbar (sort by price/rating, "in stock only"), and a virtualized grid
 - 🛍️ **Shopping cart** with quantity and delivery option management
 - 💳 **Checkout** with a mock card payment step (demo-only, no real payments) and payment summary
 - 📦 **Order history** and package tracking with a status lifecycle (preparing → shipped → delivered), including an in-app status control when signed in
@@ -57,7 +57,7 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 ├── server/                  # Express backend
 │   ├── prisma/
 │   │   ├── schema.prisma    # DB models: User, Product, CartItem, Order, OrderItem
-│   │   └── seed.ts          # Seeds all 42 products
+│   │   └── seed.ts          # Seeds 42 products + a demo user
 │   └── src/
 │       ├── middleware/auth.ts
 │       ├── routes/          # auth, cart, orders, products
@@ -66,7 +66,8 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 │       └── prismaClient.ts
 ├── shared/
 │   └── types.ts             # Shared TypeScript interfaces
-├── .github/workflows/       # GitHub Actions CI (lint → test → build)
+├── e2e/                     # Playwright specs (static-demo + opt-in live)
+├── .github/workflows/       # GitHub Actions CI (lint → test → build → e2e)
 └── src/                     # React frontend
     ├── components/          # CartItem, Header, PaymentSummary, ProductCard, DemoModeBanner
     ├── context/             # AuthContext, CartContext (with guest cart merge)
@@ -126,8 +127,12 @@ npx prisma migrate dev --name init
 # 4. (Optional) Verify DB connection from server folder
 npx prisma db pull
 
-# 5. Seed products
+# 5. Seed products and a demo user
 npx prisma db seed
+
+# Demo login (created by the seed):
+#   email:    demo@example.com
+#   password: password123
 
 # 6. Start the API server
 npm run dev        # http://localhost:3001
@@ -157,30 +162,29 @@ If your DB password contains special URL characters (`@`, `&`, `#`, `/`, `%`), U
 ```bash
 npm run test        # Frontend unit tests (Vitest)
 npm run test:e2e    # Playwright E2E (static demo mode, hermetic)
-cd server && npm test       # Server unit + DB integration tests
+npm run test:server # Server unit + DB integration tests
 ```
 
-The frontend suite covers the cart reducer, order helpers, and the debounced search hook. The server suite covers order-total math, idempotency payload hashing, delivery-date estimation, order-status lifecycle, and shared-vs-server constant parity, plus DB-backed `supertest` tests (auth/refresh rotation, cart merge, stock limits, order placement) that self-skip unless `TEST_DATABASE_URL` points at a throwaway Postgres.
+The frontend suite covers the cart reducer, order helpers, the debounced search hook, product filtering/sorting, and search match highlighting. The server suite covers order-total math, idempotency payload hashing, delivery-date estimation, order-status lifecycle, and shared-vs-server constant parity, plus DB-backed `supertest` tests (auth/refresh rotation, cart merge, stock limits, order placement) that self-skip unless a throwaway Postgres is reachable — locally `TEST_DATABASE_URL` is derived automatically from `DATABASE_URL` (e.g. `amazon_clone` → `amazon_clone_test`).
 
-Additional browser coverage against the **real backend** is opt-in (files ending in `live.spec.ts`):
+Additional browser coverage against the **real backend** is opt-in (files ending in `live.spec.ts`). Start the backend pointed at a throwaway database, then run:
 
 ```bash
-# 1. Start the backend with the same test database:
+# 1. Start the backend with the test database:
 #    DATABASE_URL=postgresql://.../amazon_clone_test npm run dev  (cd server)
-# 2. Run the live suite:
-set E2E_LIVE=1
+# 2. Run the live suite (requires E2E_LIVE + a matching TEST_DATABASE_URL):
 set TEST_DATABASE_URL=postgresql://.../amazon_clone_test
-npx playwright test e2e/live.spec.ts
+npm run test:e2e:live
 ```
+
+The live suite covers search, product detail, add-to-cart, guest checkout with the demo card, save-for-later, and signed-in order status control. It runs serially on a single worker because every test shares the same throwaway database.
 
 The project is wired for **continuous integration** via GitHub Actions (see `.github/workflows/ci.yml`). On every push/PR to `main`, the pipeline runs:
 
-1. `npm ci`
-2. `npm run lint`
-3. `npm run test`
-4. `npm run build`
-
-The server CI job also runs `npm test` against a temporary Postgres service container (the DB-backed integration tests run there automatically).
+1. `npm run lint`, `npm run test`, `npm run build` (frontend)
+2. `npm test` against a temporary Postgres service container (server)
+3. Hermetic Playwright E2E with cached browsers
+4. **Full-stack live E2E**: a built backend is started against the Postgres service and `e2e/live.spec.ts` runs end-to-end (tests are skipped if `E2E_LIVE` isn't set, so this job is the only one that exercises them)
 
 ---
 
@@ -210,14 +214,17 @@ The server CI job also runs `npm test` against a temporary Postgres service cont
 
 ## 🧑‍💻 Scripts
 
-### Frontend
+### Frontend (repo root)
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start Vite dev server with HMR |
+| `npm run dev:server` | Start the Express API (alias for `npm run dev --prefix server`) |
 | `npm run build` | Type-check and build for production |
 | `npm run lint` | Run ESLint |
 | `npm run test` | Run unit tests (Vitest) |
+| `npm run test:server` | Run server tests (alias for `cd server && npm test`) |
 | `npm run test:e2e` | Run Playwright E2E (static demo mode) |
+| `npm run test:e2e:live` | Run Playwright live E2E (requires E2E_LIVE + TEST_DATABASE_URL) |
 | `npm run preview` | Preview the production build |
 
 ### Backend (`cd server`)
@@ -226,9 +233,9 @@ The server CI job also runs `npm test` against a temporary Postgres service cont
 | `npm run dev` | Start Express with ts-node-dev (hot reload) |
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm run db:migrate` | Run Prisma migrations |
-| `npm run db:seed` | Seed the database |
+| `npm run db:seed` | Seed 42 products + the demo user |
 | `npm run db:generate` | Regenerate Prisma client |
-| `npm test` | Run unit tests + DB integration tests (integration skipped without `TEST_DATABASE_URL`) |
+| `npm test` | Run unit tests + DB integration tests (integration skipped without a reachable Postgres) |
 
 ---
 

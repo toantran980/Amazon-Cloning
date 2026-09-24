@@ -71,6 +71,19 @@ function fetchWithLifecycle(input: string, init: RequestInit): Promise<Response>
   });
 }
 
+// Network errors are often transient (flaky Wi-Fi, the dev server hiccuping
+// mid-request). Retry idempotent GETs once; aborts (timeout/logout) and all
+// non-GET methods are not retried.
+function fetchWithRetry(path: string, init: RequestInit, method: string): Promise<Response> {
+  const attempt = () => fetchWithLifecycle(`${BASE}${path}`, init);
+  const isAbort = (err: unknown) => err instanceof DOMException && err.name === 'AbortError';
+
+  return attempt().catch((err) => {
+    if (method !== 'GET' || isAbort(err) || init.signal?.aborted) throw err;
+    return attempt();
+  });
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -79,20 +92,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
+  const method = options.method ?? 'GET';
   const fetchOptions: RequestInit = {
     ...options,
     headers,
     credentials: 'include', // Include HttpOnly cookies for refresh token rotation
   };
 
-  let res = await fetchWithLifecycle(`${BASE}${path}`, fetchOptions);
+  let res = await fetchWithRetry(path, fetchOptions, method);
 
   if (res.status === 401 && shouldAttemptRefresh(path)) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       // Retry original request with the fresh token.
       headers['Authorization'] = `Bearer ${newToken}`;
-      res = await fetchWithLifecycle(`${BASE}${path}`, { ...options, headers, credentials: 'include' });
+      res = await fetchWithRetry(path, { ...options, headers, credentials: 'include' }, method);
     }
   }
 
