@@ -51,7 +51,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 ### Phase 1: Deploy as Portfolio Demo ✅ Ready
 
 - Deploy frontend to Vercel / Netlify
-- Deploy backend to Railway / Render / Fly.io (PostgreSQL managed cluster)
+- Deploy backend to Render (PostgreSQL managed cluster)
 - Set environment variables on hosting provider
 - Production container deployments via Docker Compose or Kubernetes manifests
 
@@ -66,7 +66,7 @@ Short answer: yes for a portfolio/demo release, no for real e-commerce usage yet
 > NODE_ENV="development"
 > ```
 >
-> You need a running PostgreSQL instance locally or a hosted one (e.g. [Railway](https://railway.app), [Supabase](https://supabase.com), [Neon](https://neon.tech)).
+> You need a running PostgreSQL instance locally or a hosted one (e.g. [Render](https://render.com), [Supabase](https://supabase.com), [Neon](https://neon.tech)).
 
 #### Phase 2 Follow-Up (May 17, 2026)
 
@@ -232,7 +232,7 @@ Executes Stripe.js confirmCardPayment()
 
 ## Final Advice
 
-If your goal is to showcase a feature-complete portfolio project, **deploy now** using the provided Docker compose or Railway configs.
+If your goal is to showcase a feature-complete portfolio project, **deploy now** using the provided Docker compose or Render configs.
 Your app features HttpOnly token rotation security, health probes, complete API cart sync, and a simulated checkout with server-trusted order totals.
 
 
