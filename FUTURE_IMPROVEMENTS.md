@@ -142,7 +142,7 @@ Executes Stripe.js confirmCardPayment()
 
 #### 2. Health Monitoring & Observability Stack
 - ~~**Health check probe (`GET /healthz`)**: Performs database ping and reports uptime for container orchestrator readiness probes.~~ ✅
-- **Sentry Integration**: `@sentry/react` for frontend error boundary tracking; `@sentry/node` for unhandled Express endpoint exceptions. _(Sprint E)_
+- **Sentry Integration**: `@sentry/react` for frontend error boundary tracking; `@sentry/node` for unhandled Express endpoint exceptions. _(Sprint H)_
 
 ---
 
@@ -155,6 +155,50 @@ Executes Stripe.js confirmCardPayment()
 | **Inventory Management** | ~~Stock quantity tracking per SKU. Pessimistic lock during checkout flow (`SELECT ... FOR UPDATE`) to prevent double-selling limited stock items.~~ Basic stock tracking + optimistic decrement shipped: `Product.stock` column, gated/decreemented in the order transaction. |
 | **Wishlist & Save for Later** | ~~User `Wishlist` and `CartItem.savedForLater` boolean flag support in frontend UI and backend Prisma schema.~~ Done: `Save for later` / `Move to cart` on the checkout page, persisted in the guest cart and server `CartItem.savedForLater`. |
 | **Transactional Email** | Nodemailer / Resend service integration to dispatch automated HTML order confirmation receipts and tracking updates. |
+
+---
+
+### Phase 8: Developer Experience & Quality Gates (DX)
+
+| Feature | Proposed Approach |
+| :--- | :--- |
+| **Pre-commit hooks** | Add `lint-staged` + `husky` so `eslint`, `vitest run` (fast subset), and `tsc` run on staged files before every commit — catches issues before they hit CI. |
+| **Playwright browser matrix** | Enable the `firefox` project in `playwright.config.ts` (and optionally `webkit`) alongside `chromium` so cross-browser regressions surface in the hermetic suite. Cheap, high signal. |
+| **Visual regression snapshots** | Add Playwright `toHaveScreenshot()` on the key pages (home, product detail, checkout) with a `--update-snapshots` CI lane to rebase intentional UI changes. |
+| **Accessibility checks** | Inject an axe-core scan (via `@axe-core/playwright`) into the checkout and orders flows to assert no critical WCAG violations (contrast, focus order, labels). |
+| **Coverage thresholds** | Enable Vitest `coverage.thresholds` (e.g. 80% on `src/utils` and `src/reducers`) so the unit suite can't silently shrink, plus a `coverage` npm script + artifact upload. |
+| **Dependency hygiene** | Weekly `npm audit` step in CI and Dependabot for `minor`/`patch` updates so the small dependency graph stays current. |
+
+### Phase 9: Catalog & Search Depth
+
+| Feature | Proposed Approach |
+| :--- | :--- |
+| **Category facets** | Add a `category` column to `Product`, expose `GET /api/products?category=` + facet counts, and render clickable filter chips in the results toolbar alongside the existing sort/in-stock controls. |
+| **Full-text ranking** | Upgrade the server-side search from `ILIKE` to PostgreSQL `tsvector` (title weight A, keywords weight B) returning relevance-ranked results; keep the current substring fallback for short queries. |
+| **Recently viewed** | Persist a capped list of last-viewed product IDs (`localStorage` for guests, `Prisma` view table for signed-in users) and render a horizontal strip on the home page. |
+| **Product images** | Migrate the static `public/images/**` assets to an object store/CDN (Cloudinary/S3) with responsive `srcset` widths, since the catalog is image-heavy (this is the biggest page-weight lever). |
+
+### Phase 10: Commerce & Account Features
+
+| Feature | Proposed Approach |
+| :--- | :--- |
+| **Shipping addresses** | `Address` model (1:N with `User`), multi-address book, and address selection + validation (Zod) at checkout. |
+| **Order cancellation / returns** | `Order.cancelledAt` + `ReturnRequest` models, cancel button active during `preparing` (restores stock), plus a returns form for `delivered` orders. |
+| **Product reviews** | `Review` model (userId+productId unique, stars 1-5, optional body); average recomputed in the order transaction; 1-review-per-verified-purchase enforcement. |
+| **Transactional emails** | Resend/Nodemailer queue keyed off order creation to send confirmations; no-op email transport in dev (log to console/pino). |
+| **Password reset** | Signed reset tokens (`/api/auth/forgot-password`, `/api/auth/reset-password`) with expiry + reuse detection, mirroring the refresh-token hardening. |
+| **Admin surface** | `role` enum on `User`; minimal admin-only routes for inventory (`PATCH /api/products/:id/stock`) and order fulfillment — avoids one-off scripts. |
+
+### Phase 11: Observability, Security & Ops
+
+| Feature | Proposed Approach |
+| :--- | :--- |
+| **Error tracking** | `@sentry/react` hooked into `ErrorBoundary` + `@sentry/node` for Express; exclude non-live requests in dev. |
+| **Health & uptime** | Keep `/healthz`; add `GET /healthz/ready` checking DB + migrations, wire into the Docker compose healthchecks, and add an uptime monitor (UptimeRobot/StatusCake). |
+| **Backups & PITR** | Enable automated Postgres backups (e.g. nightly `pg_dump` to object storage or managed PITR if using Supabase/Neon) and document the restore runbook. |
+| **CSRF defense** | State-changing routes currently rely on `SameSite=Lax` + rate limits; add a CSRF token check (double-submit cookie pattern) if cross-site origin risks grow. |
+| **API documentation** | Add `openapi.yaml` (or Hono/Routes-generated docs) so the API contract is explorable and the shared server/client types stay in sync. |
+| **Deploy previews** | Vercel/Netlify PR previews for the frontend tied to the CI check, so reviewers test the actual bundle instead of just reading test output. |
 
 ---
 
@@ -181,7 +225,10 @@ Executes Stripe.js confirmCardPayment()
 - [x] ~~**Sprint B**: HttpOnly cookie-based Refresh Token Rotation with token reuse detection.~~
 - [x] ~~**Sprint C**: Playwright E2E test suite covering shopping and order workflows.~~
 - [x] ~~**Sprint D**: Health monitoring & `/healthz` readiness probe integration.~~
-- [ ] **Sprint E**: PostgreSQL full-text search, product review system, and transactional emails.
+- [ ] **Sprint E**: Catalog depth (category facets, `tsvector` ranking, recently viewed, CDN images) — see Phase 9.
+- [ ] **Sprint F**: Commerce features (address book, order cancellation/returns, product reviews, password reset, admin surface) — see Phase 10.
+- [ ] **Sprint G**: Developer experience (lint-staged/husky, Playwright browser matrix, visual regression, axe accessibility, coverage thresholds, Dependabot) — see Phase 8.
+- [ ] **Sprint H**: Observability & ops (Sentry, `/healthz/ready`, backups/PITR, CSRF, OpenAPI docs, deploy previews) — see Phase 11.
 
 ## Final Advice
 
