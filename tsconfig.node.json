@@ -20,5 +20,11 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "e2e"]
+  "include": ["vite.config.ts", "playwright.config.ts", "e2e"],
+  "exclude": [
+    // live.spec imports server/src/prismaClient (which needs @prisma/client).
+    // The client Docker build doesn't install server deps, so it must not be
+    // type-checked by the frontend project.
+    "e2e/live.spec.ts"
+  ]
 }

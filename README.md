@@ -32,6 +32,7 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 ## 🧱 Tech Stack
 
 ### Frontend
+
 - **React 19** with React Router v7
 - **TypeScript** + Vite 8
 - **Tailwind CSS v4** for styling (via `@tailwindcss/vite`)
@@ -40,6 +41,7 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 - **ESLint** for linting
 
 ### Backend
+
 - **Express** (Node.js) REST API
 - **PostgreSQL** database
 - **Prisma** ORM with migrations and seeding
@@ -87,7 +89,7 @@ A full-featured Amazon storefront clone built with **React 19, TypeScript, and V
 Run the complete app (PostgreSQL, Express API, and Nginx SPA) with a single command:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 - **Frontend Application**: `http://localhost` (Port 80)
@@ -95,6 +97,7 @@ docker compose up --build
 - **PostgreSQL Database**: `localhost:5432`
 
 To stop and remove containers:
+
 ```bash
 docker compose down
 ```
@@ -190,20 +193,20 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 
 ## 🔌 API Routes
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/auth/register` | — | Create account (rate-limited) |
-| POST | `/api/auth/login` | — | Sign in, returns JWT (rate-limited) |
-| GET | `/api/products` | — | List/search products (`?search=`, `?page=`, `?pageSize=`) |
-| GET | `/api/cart` | ✅ | Get cart items |
-| POST | `/api/cart` | ✅ | Add item to cart |
-| PATCH | `/api/cart/:productId` | ✅ | Update quantity/delivery |
-| DELETE | `/api/cart/:productId` | ✅ | Remove item |
-| DELETE | `/api/cart` | ✅ | Clear cart |
-| GET | `/api/orders` | ✅ | Get order history |
-| GET | `/api/orders/:id` | ✅ | Get one order |
-| POST | `/api/orders` | ✅ | Place order, clears cart, supports `Idempotency-Key` |
-| PATCH | `/api/orders/:id/status` | ✅ | Update status (`preparing`/`shipped`/`delivered`) |
+| Method | Path                       | Auth | Description                                                     |
+| ------ | -------------------------- | ---- | --------------------------------------------------------------- |
+| POST   | `/api/auth/register`     | —   | Create account (rate-limited)                                   |
+| POST   | `/api/auth/login`        | —   | Sign in, returns JWT (rate-limited)                             |
+| GET    | `/api/products`          | —   | List/search products (`?search=`, `?page=`, `?pageSize=`) |
+| GET    | `/api/cart`              | ✅   | Get cart items                                                  |
+| POST   | `/api/cart`              | ✅   | Add item to cart                                                |
+| PATCH  | `/api/cart/:productId`   | ✅   | Update quantity/delivery                                        |
+| DELETE | `/api/cart/:productId`   | ✅   | Remove item                                                     |
+| DELETE | `/api/cart`              | ✅   | Clear cart                                                      |
+| GET    | `/api/orders`            | ✅   | Get order history                                               |
+| GET    | `/api/orders/:id`        | ✅   | Get one order                                                   |
+| POST   | `/api/orders`            | ✅   | Place order, clears cart, supports`Idempotency-Key`           |
+| PATCH  | `/api/orders/:id/status` | ✅   | Update status (`preparing`/`shipped`/`delivered`)         |
 
 - `POST /api/orders` calculates order totals from **database product prices** instead of trusting client-sent pricing, decrements product stock, and computes the delivery estimate server-side.
 - Repeating `POST /api/orders` with the same `Idempotency-Key` and matching payload returns the existing order (200); a changed payload with the same key returns **409**.
@@ -215,27 +218,29 @@ The project is wired for **continuous integration** via GitHub Actions (see `.gi
 ## 🧑‍💻 Scripts
 
 ### Frontend (repo root)
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server with HMR |
-| `npm run dev:server` | Start the Express API (alias for `npm run dev --prefix server`) |
-| `npm run build` | Type-check and build for production |
-| `npm run lint` | Run ESLint |
-| `npm run test` | Run unit tests (Vitest) |
-| `npm run test:server` | Run server tests (alias for `cd server && npm test`) |
-| `npm run test:e2e` | Run Playwright E2E (static demo mode) |
-| `npm run test:e2e:live` | Run Playwright live E2E (requires E2E_LIVE + TEST_DATABASE_URL) |
-| `npm run preview` | Preview the production build |
+
+| Command                   | Description                                                      |
+| ------------------------- | ---------------------------------------------------------------- |
+| `npm run dev`           | Start Vite dev server with HMR                                   |
+| `npm run dev:server`    | Start the Express API (alias for`npm run dev --prefix server`) |
+| `npm run build`         | Type-check and build for production                              |
+| `npm run lint`          | Run ESLint                                                       |
+| `npm run test`          | Run unit tests (Vitest)                                          |
+| `npm run test:server`   | Run server tests (alias for`cd server && npm test`)            |
+| `npm run test:e2e`      | Run Playwright E2E (static demo mode)                            |
+| `npm run test:e2e:live` | Run Playwright live E2E (requires E2E_LIVE + TEST_DATABASE_URL)  |
+| `npm run preview`       | Preview the production build                                     |
 
 ### Backend (`cd server`)
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Express with ts-node-dev (hot reload) |
-| `npm run build` | Compile TypeScript to `dist/` |
-| `npm run db:migrate` | Run Prisma migrations |
-| `npm run db:seed` | Seed 42 products + the demo user |
-| `npm run db:generate` | Regenerate Prisma client |
-| `npm test` | Run unit tests + DB integration tests (integration skipped without a reachable Postgres) |
+
+| Command                 | Description                                                                              |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| `npm run dev`         | Start Express with ts-node-dev (hot reload)                                              |
+| `npm run build`       | Compile TypeScript to`dist/`                                                           |
+| `npm run db:migrate`  | Run Prisma migrations                                                                    |
+| `npm run db:seed`     | Seed 42 products + the demo user                                                         |
+| `npm run db:generate` | Regenerate Prisma client                                                                 |
+| `npm test`            | Run unit tests + DB integration tests (integration skipped without a reachable Postgres) |
 
 ---
 

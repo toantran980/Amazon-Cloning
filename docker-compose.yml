@@ -10,7 +10,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # postgres:18+ keeps data in a subdirectory, so the volume must mount at
+      # the parent /var/lib/postgresql (see docker-library/postgres#1259).
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d amazon_clone"]
       interval: 5s
